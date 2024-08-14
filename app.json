@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "scheme": "acme",
+    "entryPoint": "./node_modules/expo-router/entry.js",
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "name": "flatbuddy_mk1",
+    "slug": "flatbuddy_mk1",
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "a0e3eaf8-1866-44b1-a7c1-6e12f2daaae5"
+      }
+    },
+    "android": {
+      "package": "com.hrsugarnan.flatbuddy_mk1"
+    },
+    "ios": {
+      "bundleIdentifier": "com.sugartech.flatbuddy"
+    }
+  }
+}
