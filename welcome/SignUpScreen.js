@@ -69,7 +69,7 @@ const SignUpScreen = ({ navigation }) => {
       });//setting initial information
 
       alert('Account created successfully');
-      navigation.navigate('Login'); // using the email and the common prop to the profile
+      // navigation.navigate('Login'); // using the email and the common prop to the profile
 
     } catch (error) {
       setError('Error: ' + error.message);

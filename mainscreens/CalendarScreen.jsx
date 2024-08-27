@@ -114,6 +114,22 @@ const CalendarScreen = ({ route, navigation }) => {
     }
   };
 
+   // This function will now only remove a specific chore instance based on its ID
+   const handleRemoveChoreInstance = async (choreId) => {
+    setLoadingRemove(prev => ({ ...prev, [choreId]: true }));
+    try {
+      const choreDocRef = doc(firestore, 'chores', choreId);
+      await deleteDoc(choreDocRef);
+
+      fetchChores(); // Refetch chores to update UI
+      fetchActiveChores(); // Refetch active chores to update UI
+    } catch (error) {
+      console.error('Error removing chore: ', error);
+    } finally {
+      setLoadingRemove(prev => ({ ...prev, [choreId]: false }));
+    }
+  };
+
   const assignChores = async (chore) => {
     const today = new Date();
     const numFlatmates = flatMembUsernames.length;
@@ -181,11 +197,11 @@ const CalendarScreen = ({ route, navigation }) => {
           <Text style={styles.choreName}>{chore.choreName}</Text>
           <Text style={styles.choreAssignedTo}>Assigned To: {chore.userEmail}</Text>
         </View>
-        <TouchableOpacity style={styles.removeButton} onPress={() => handleRemoveChore(chore.choreName)}>
+        <TouchableOpacity style={styles.removeButton} onPress={() => handleRemoveChoreInstance(chore.id)}>
           {loadingRemove[chore.choreName] ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.removeButtonText}>Remove</Text>
+            <Text style={styles.removeButtonText}>Completed</Text>
           )}
         </TouchableOpacity>
       </View>

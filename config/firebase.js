@@ -12,7 +12,7 @@
 
 
 import { initializeApp, getApps } from 'firebase/app';
-import { initializeAuth, getAuth, setPersistence, indexedDBLocalPersistence, Auth } from "firebase/auth";
+import { initializeAuth, getAuth, setPersistence, indexedDBLocalPersistence, Auth, getReactNativePersistence} from "firebase/auth";
 import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native'; // Import Platform from react-native
@@ -36,7 +36,9 @@ let app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 let auth;
 if (Platform.OS === 'android' || Platform.OS === 'ios') {
     // Use React Native persistence for mobile platforms
-    auth = initializeAuth(app, {persistence: indexedDBLocalPersistence})
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    })
 } else {
     // Use IndexedDB persistence for web
     auth = getAuth(app);

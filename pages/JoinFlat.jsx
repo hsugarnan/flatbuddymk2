@@ -61,7 +61,7 @@ const JoinFlat = ({ navigation }) => {
 
       <TextInput
         style={styles.input}
-        placeholder="Flat Number"
+        placeholder="Flat Code"
         value={flatNumber}
         onChangeText={setFlatNumber}
       />

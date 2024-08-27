@@ -1,11 +1,10 @@
-// screens/LoginScreen.js
 import React, { useState } from 'react';
-import { Dimensions, View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Dimensions, View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import Spacing from '../constants/Spacing';
 import FontSize from '../constants/FontSize';
 import Colors from '../constants/Colors';
 import { auth } from '../config/firebase'; // Import the configured auth
-import { signInWithEmailAndPassword, sendPasswordResetEmail, getAuth } from 'firebase/auth'; // Import Firebase Auth methods
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'; // Import Firebase Auth methods
 
 const { height } = Dimensions.get("window");
 
@@ -13,16 +12,19 @@ const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(''); // New state for error messages
-
+  const [loading, setLoading] = useState(false); // Loading state for the login process
 
   const handleLogin = async () => {
     setError(''); // Clear previous errors
+    setLoading(true); // Start loading indicator
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      navigation.replace('Main');
+      setLoading(false); // Stop loading indicator
+      navigation.replace('Main'); // Navigate to the main screen after successful login
     } catch (error) {
+      setLoading(false); // Stop loading indicator
       setError('Email or password incorrect. Please try again.');
       console.error('Error logging in:', error);
     }
@@ -50,6 +52,11 @@ const LoginScreen = ({ navigation }) => {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {/* Back Button */}
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.replace('Welcome')}>
+          <Text style={styles.backButtonText}>Back</Text>
+        </TouchableOpacity>
+
         <Text style={styles.title}>Login</Text>
 
         <TextInput
@@ -70,9 +77,15 @@ const LoginScreen = ({ navigation }) => {
           placeholderTextColor="#666"  // Adjust placeholder text color for better readability
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Log In</Text>
+        {/* Login Button with Loading Indicator */}
+        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Log In</Text>
+          )}
         </TouchableOpacity>
+
         <TouchableOpacity onPress={handleResetPassword}>
           <Text style={styles.resetText}>Forgot Password?</Text>
         </TouchableOpacity>
@@ -130,5 +143,15 @@ const styles = StyleSheet.create({
     color: 'red',
     marginTop: Spacing * 2,
     textAlign: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    zIndex: 10,
+  },
+  backButtonText: {
+    color: Colors.primary,
+    fontSize: FontSize.large,
   },
 });

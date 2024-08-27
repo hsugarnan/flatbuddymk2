@@ -1,5 +1,6 @@
 import { Dimensions, SafeAreaView, StyleSheet, Text, View, TouchableOpacity, ImageBackground } from "react-native";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import Spacing from "../constants/Spacing";
 import FontSize from "../constants/FontSize";
 import Colors from "../constants/Colors";
@@ -7,6 +8,36 @@ import Colors from "../constants/Colors";
 const { height } = Dimensions.get("window"); // getting the dimensions of the screen
 
 const WelcomeScreen = ({ navigation }) => {
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const auth = getAuth(); // Initialize Firebase Auth
+
+  useEffect(() => {
+    // Check authentication status
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        // User is signed in
+        setUser(currentUser);
+        console.log("Welcome"); // Log welcome message
+        navigation.replace('Main'); // Navigate to Home or another authenticated screen
+      } else {
+        // No user is signed in
+        setUser(null);
+      }
+      setLoading(false); // Set loading to false when done
+    });
+
+    return () => unsubscribe(); // Clean up the subscription on unmount
+  }, [auth, navigation]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {/* <Text>Loading...</Text> Show loading indicator */}
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.imageContainer}>
@@ -55,8 +86,7 @@ const styles = StyleSheet.create({
   },
   image: {
     height: height / 2.5,
-    width: '100%'
-  
+    width: '100%',
   },
   textContainer: {
     paddingHorizontal: Spacing * 4,
