@@ -71,6 +71,8 @@ const CreateFlat = ({ navigation }) => {
         placeholder="Flat Name"
         value={flatName}
         onChangeText={setFlatName}
+        
+        placeholderTextColor="#666"
       />
 
       <TouchableOpacity style={styles.button} onPress={handleCreateFlat} disabled={loading}>

@@ -134,39 +134,45 @@ const CalendarScreen = ({ route, navigation }) => {
     const today = new Date();
     const numFlatmates = flatMembUsernames.length;
     const end = new Date(chore.endDate);
-
+  
     if (chore.frequency < 1 || chore.frequency > 7) {
       alert('Frequency should be between 1 and 7');
       return;
     }
-
+  
+    let shuffledUsers = shuffleArray(flatMembUsernames); // Shuffle the array
     let j = 0;
-
+  
     let choreDate = new Date(today);
-
+  
     while (choreDate <= end) {
       const dateString = choreDate.toISOString().split('T')[0];
-
+  
       const newChore = {
         choreName: chore.choreName,
         date: dateString,
         flatID: chore.flatID,
-        userEmail: flatMembUsernames[Math.floor(j)],
+        userEmail: shuffledUsers[j], // Use shuffled users
       };
-
+  
       await addDoc(collection(firestore, 'chores'), newChore);
-
+  
       choreDate.setDate(choreDate.getDate() + Math.floor(7 / chore.frequency));
-      j = j + 1;
-      if (j >= numFlatmates) {
-        j = j - numFlatmates;
-      }
+      j = (j + 1) % numFlatmates; // Ensure index wraps around
     }
-
+  
     fetchChores();
     fetchActiveChores();
-
   };
+  const shuffleArray = (array) => {
+    let shuffledArray = array.slice();
+    for (let i = shuffledArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledArray[i], shuffledArray[j]] = [shuffledArray[j], shuffledArray[i]];
+    }
+    return shuffledArray;
+  };
+  
 
   const handleRemoveChore = async (choreName) => {
     setLoadingRemove(prev => ({ ...prev, [choreName]: true }));
@@ -250,6 +256,8 @@ const CalendarScreen = ({ route, navigation }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.keyboardAvoidingView}
     >
+
+
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.container}>
           <Calendar
@@ -261,15 +269,16 @@ const CalendarScreen = ({ route, navigation }) => {
             }}
           />
           <View style={styles.choreContainer}>
-            <Text style={styles.sectionTitle}>Your Upcoming Chores</Text>
-            {renderChores()}
-          </View>
-
-          <View style={styles.choreContainer}>
             <Text style={styles.sectionTitle}>Active Chores</Text>
             {renderActiveChores()}
           </View>
 
+          <View style={styles.choreContainer}>
+            <Text style={styles.sectionTitle}>Your Upcoming Chores</Text>
+            {renderChores()}
+          </View>
+
+          
           <View style={styles.formContainer}>
             <Text style={styles.disclaimerText}>
               Chores will only be assigned to the flat members currently in the hub. If any members are added or removed, you will need to remove all and reschedule the chores.

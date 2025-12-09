@@ -31,7 +31,7 @@ import { initializeApp, getApps } from "firebase/app";
 import { initializeAuth, getAuth, getReactNativePersistence } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import AppNavigator from "./AppNavigator";
-
+import registerNNPushToken from 'native-notify';
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBNcTckaLPZpAL3q5T_1KlJCDji_yjMs1A",
@@ -55,6 +55,7 @@ if (getApps().length === 0) {
   app = getApps()[0]; // Use the already initialized app
   auth = getAuth(app); // Get the existing Auth instance
 }
+
 
 const App = () => {
   return <AppNavigator />;

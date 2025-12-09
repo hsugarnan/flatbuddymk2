@@ -6,6 +6,7 @@ import Colors from '../constants/Colors';
 import { auth, firestore } from '../config/firebase'; // Import the auth and firestore
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
+import { registerIndieID, unregisterIndieDevice } from 'native-notify';
 
 const SignUpScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
@@ -20,8 +21,8 @@ const SignUpScreen = ({ navigation }) => {
     'https://cdn-icons-png.freepik.com/512/10693/10693034.png',
     'https://cdn-icons-png.freepik.com/512/16903/16903494.png',
     'https://cdn-icons-png.freepik.com/512/8637/8637477.png',
-    'https://cdn-icons-png.freepik.com/512/14660/14660708.png',
-    'https://img.freepik.com/premium-vector/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-vector-illustration_561158-3396.jpg',
+    
+    
   ];
 
   const getRandomImage = () => {
@@ -59,6 +60,7 @@ const SignUpScreen = ({ navigation }) => {
       // Successfully created a new user
       const user = userCredential.user;
       setUser(user);
+      
 
       // Store additional user data in Firestore
       await setDoc(doc(firestore, 'users', user.uid), {
@@ -67,7 +69,6 @@ const SignUpScreen = ({ navigation }) => {
         flatNum: "",
         imgLink: getRandomImage(),
       });//setting initial information
-
       alert('Account created successfully');
       // navigation.navigate('Login'); // using the email and the common prop to the profile
 

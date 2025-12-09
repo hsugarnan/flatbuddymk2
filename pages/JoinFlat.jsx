@@ -64,6 +64,7 @@ const JoinFlat = ({ navigation }) => {
         placeholder="Flat Code"
         value={flatNumber}
         onChangeText={setFlatNumber}
+        placeholderTextColor="#666"
       />
 
       <TouchableOpacity style={styles.button} onPress={handleJoinFlat} disabled={loading}>

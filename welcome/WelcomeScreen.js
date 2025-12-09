@@ -5,15 +5,15 @@ import Spacing from "../constants/Spacing";
 import FontSize from "../constants/FontSize";
 import Colors from "../constants/Colors";
 
-const { height } = Dimensions.get("window"); // getting the dimensions of the screen
+const { height } = Dimensions.get("window"); //getting the dimensions of the screen
 
 const WelcomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const auth = getAuth(); // Initialize Firebase Auth
+  const auth = getAuth(); //Initialize Firebase Auth
 
   useEffect(() => {
-    // Check authentication status
+    //check authentication status
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         // User is signed in

@@ -5,6 +5,7 @@ import FontSize from '../constants/FontSize';
 import Colors from '../constants/Colors';
 import { auth } from '../config/firebase'; // Import the configured auth
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'; // Import Firebase Auth methods
+import { registerIndieID, unregisterIndieDevice } from 'native-notify';
 
 const { height } = Dimensions.get("window");
 
@@ -23,6 +24,7 @@ const LoginScreen = ({ navigation }) => {
       const user = userCredential.user;
       setLoading(false); // Stop loading indicator
       navigation.replace('Main'); // Navigate to the main screen after successful login
+      registerIndieID(email, 23326, 'zibbPUUqLIPAgtBaf84dbz');
     } catch (error) {
       setLoading(false); // Stop loading indicator
       setError('Email or password incorrect. Please try again.');
@@ -61,7 +63,7 @@ const LoginScreen = ({ navigation }) => {
 
         <TextInput
           style={styles.input}
-          placeholder="Email"
+          placeholder="Emails"
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"

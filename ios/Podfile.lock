@@ -954,21 +954,32 @@ PODS:
     - BoringSSL-GRPC/Interface (= 0.0.32)
   - BoringSSL-GRPC/Interface (0.0.32)
   - DoubleConversion (1.1.6)
+  - EXApplication (5.9.1):
+    - ExpoModulesCore
   - EXConstants (16.0.2):
     - ExpoModulesCore
-  - Expo (51.0.26):
+  - EXImageLoader (4.7.0):
+    - ExpoModulesCore
+    - React-Core
+  - EXNotifications (0.28.16):
+    - ExpoModulesCore
+  - Expo (51.0.32):
     - ExpoModulesCore
   - ExpoAsset (10.0.10):
     - ExpoModulesCore
+  - ExpoDevice (6.0.2):
+    - ExpoModulesCore
   - ExpoFileSystem (17.0.1):
     - ExpoModulesCore
-  - ExpoFont (12.0.9):
+  - ExpoFont (12.0.10):
     - ExpoModulesCore
-  - ExpoHead (3.5.21):
+  - ExpoHead (3.5.23):
+    - ExpoModulesCore
+  - ExpoImagePicker (15.0.7):
     - ExpoModulesCore
   - ExpoKeepAwake (13.0.2):
     - ExpoModulesCore
-  - ExpoModulesCore (1.12.20):
+  - ExpoModulesCore (1.12.24):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1022,6 +1033,9 @@ PODS:
   - Firebase/Firestore (10.29.0):
     - Firebase/CoreOnly
     - FirebaseFirestore (~> 10.29.0)
+  - Firebase/Messaging (10.29.0):
+    - Firebase/CoreOnly
+    - FirebaseMessaging (~> 10.29.0)
   - FirebaseAppCheckInterop (10.29.0)
   - FirebaseAuth (10.29.0):
     - FirebaseAppCheckInterop (~> 10.17)
@@ -1058,9 +1072,27 @@ PODS:
     - gRPC-Core (~> 1.62.0)
     - leveldb-library (~> 1.22)
     - nanopb (< 2.30911.0, >= 2.30908.0)
+  - FirebaseInstallations (10.29.0):
+    - FirebaseCore (~> 10.0)
+    - GoogleUtilities/Environment (~> 7.8)
+    - GoogleUtilities/UserDefaults (~> 7.8)
+    - PromisesObjC (~> 2.1)
+  - FirebaseMessaging (10.29.0):
+    - FirebaseCore (~> 10.0)
+    - FirebaseInstallations (~> 10.0)
+    - GoogleDataTransport (~> 9.3)
+    - GoogleUtilities/AppDelegateSwizzler (~> 7.8)
+    - GoogleUtilities/Environment (~> 7.8)
+    - GoogleUtilities/Reachability (~> 7.8)
+    - GoogleUtilities/UserDefaults (~> 7.8)
+    - nanopb (< 2.30911.0, >= 2.30908.0)
   - FirebaseSharedSwift (10.29.0)
   - fmt (9.1.0)
   - glog (0.3.5)
+  - GoogleDataTransport (9.4.1):
+    - GoogleUtilities/Environment (~> 7.7)
+    - nanopb (< 2.30911.0, >= 2.30908.0)
+    - PromisesObjC (< 3.0, >= 1.2)
   - GoogleUtilities/AppDelegateSwizzler (7.13.3):
     - GoogleUtilities/Environment
     - GoogleUtilities/Logger
@@ -1081,6 +1113,9 @@ PODS:
     - GoogleUtilities/Privacy
   - GoogleUtilities/Privacy (7.13.3)
   - GoogleUtilities/Reachability (7.13.3):
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Privacy
+  - GoogleUtilities/UserDefaults (7.13.3):
     - GoogleUtilities/Logger
     - GoogleUtilities/Privacy
   - "gRPC-C++ (1.62.5)":
@@ -2100,6 +2135,27 @@ PODS:
   - React-Mapbuffer (0.74.5):
     - glog
     - React-debug
+  - react-native-image-picker (7.1.2):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.01.01.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Codegen
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererdebug
+    - React-utils
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - react-native-safe-area-context (4.10.5):
     - React-Core
   - React-nativeconfig (0.74.5)
@@ -2332,7 +2388,9 @@ PODS:
     - React-perflogger (= 0.74.5)
     - React-utils (= 0.74.5)
   - RecaptchaInterop (100.0.0)
-  - RNCAsyncStorage (1.24.0):
+  - RNCAsyncStorage (1.23.1):
+    - React-Core
+  - RNCPicker (2.7.5):
     - React-Core
   - RNDateTimePicker (8.0.1):
     - React-Core
@@ -2346,6 +2404,11 @@ PODS:
   - RNFBFirestore (20.4.0):
     - Firebase/Firestore (= 10.29.0)
     - nanopb (< 2.30910.0, >= 2.30908.0)
+    - React-Core
+    - RNFBApp
+  - RNFBMessaging (20.4.0):
+    - Firebase/Messaging (= 10.29.0)
+    - FirebaseCoreExtension
     - React-Core
     - RNFBApp
   - RNGestureHandler (2.16.2):
@@ -2397,12 +2460,17 @@ PODS:
 DEPENDENCIES:
   - boost (from `../node_modules/react-native/third-party-podspecs/boost.podspec`)
   - DoubleConversion (from `../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec`)
+  - EXApplication (from `../node_modules/expo-application/ios`)
   - EXConstants (from `../node_modules/expo-constants/ios`)
+  - EXImageLoader (from `../node_modules/expo-image-loader/ios`)
+  - EXNotifications (from `../node_modules/expo-notifications/ios`)
   - Expo (from `../node_modules/expo`)
   - ExpoAsset (from `../node_modules/expo-asset/ios`)
+  - ExpoDevice (from `../node_modules/expo-device/ios`)
   - ExpoFileSystem (from `../node_modules/expo-file-system/ios`)
   - ExpoFont (from `../node_modules/expo-font/ios`)
   - ExpoHead (from `../node_modules/expo-router/ios`)
+  - ExpoImagePicker (from `../node_modules/expo-image-picker/ios`)
   - ExpoKeepAwake (from `../node_modules/expo-keep-awake/ios`)
   - ExpoModulesCore (from `../node_modules/expo-modules-core`)
   - EXSplashScreen (from `../node_modules/expo-splash-screen/ios`)
@@ -2438,6 +2506,7 @@ DEPENDENCIES:
   - React-jsitracing (from `../node_modules/react-native/ReactCommon/hermes/executor/`)
   - React-logger (from `../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
+  - react-native-image-picker (from `../node_modules/react-native-image-picker`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - React-nativeconfig (from `../node_modules/react-native/ReactCommon`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
@@ -2463,10 +2532,12 @@ DEPENDENCIES:
   - React-utils (from `../node_modules/react-native/ReactCommon/react/utils`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
+  - "RNCPicker (from `../node_modules/@react-native-picker/picker`)"
   - "RNDateTimePicker (from `../node_modules/@react-native-community/datetimepicker`)"
   - "RNFBApp (from `../node_modules/@react-native-firebase/app`)"
   - "RNFBAuth (from `../node_modules/@react-native-firebase/auth`)"
   - "RNFBFirestore (from `../node_modules/@react-native-firebase/firestore`)"
+  - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
@@ -2483,7 +2554,10 @@ SPEC REPOS:
     - FirebaseCoreInternal
     - FirebaseFirestore
     - FirebaseFirestoreInternal
+    - FirebaseInstallations
+    - FirebaseMessaging
     - FirebaseSharedSwift
+    - GoogleDataTransport
     - GoogleUtilities
     - "gRPC-C++"
     - gRPC-Core
@@ -2499,18 +2573,28 @@ EXTERNAL SOURCES:
     :podspec: "../node_modules/react-native/third-party-podspecs/boost.podspec"
   DoubleConversion:
     :podspec: "../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec"
+  EXApplication:
+    :path: "../node_modules/expo-application/ios"
   EXConstants:
     :path: "../node_modules/expo-constants/ios"
+  EXImageLoader:
+    :path: "../node_modules/expo-image-loader/ios"
+  EXNotifications:
+    :path: "../node_modules/expo-notifications/ios"
   Expo:
     :path: "../node_modules/expo"
   ExpoAsset:
     :path: "../node_modules/expo-asset/ios"
+  ExpoDevice:
+    :path: "../node_modules/expo-device/ios"
   ExpoFileSystem:
     :path: "../node_modules/expo-file-system/ios"
   ExpoFont:
     :path: "../node_modules/expo-font/ios"
   ExpoHead:
     :path: "../node_modules/expo-router/ios"
+  ExpoImagePicker:
+    :path: "../node_modules/expo-image-picker/ios"
   ExpoKeepAwake:
     :path: "../node_modules/expo-keep-awake/ios"
   ExpoModulesCore:
@@ -2574,6 +2658,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/logger"
   React-Mapbuffer:
     :path: "../node_modules/react-native/ReactCommon"
+  react-native-image-picker:
+    :path: "../node_modules/react-native-image-picker"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   React-nativeconfig:
@@ -2624,6 +2710,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   RNCAsyncStorage:
     :path: "../node_modules/@react-native-async-storage/async-storage"
+  RNCPicker:
+    :path: "../node_modules/@react-native-picker/picker"
   RNDateTimePicker:
     :path: "../node_modules/@react-native-community/datetimepicker"
   RNFBApp:
@@ -2632,6 +2720,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-firebase/auth"
   RNFBFirestore:
     :path: "../node_modules/@react-native-firebase/firestore"
+  RNFBMessaging:
+    :path: "../node_modules/@react-native-firebase/messaging"
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
   RNScreens:
@@ -2644,14 +2734,19 @@ SPEC CHECKSUMS:
   boost: d3f49c53809116a5d38da093a8aa78bf551aed09
   BoringSSL-GRPC: 1e2348957acdbcad360b80a264a90799984b2ba6
   DoubleConversion: 76ab83afb40bddeeee456813d9c04f67f78771b5
+  EXApplication: c08200c34daca7af7fd76ac4b9d606077410e8ad
   EXConstants: 409690fbfd5afea964e5e9d6c4eb2c2b59222c59
-  Expo: f3e39cddde295c79d206e972a59693cbb329ef46
+  EXImageLoader: ab589d67d6c5f2c33572afea9917304418566334
+  EXNotifications: b1b174716b287e161350a18de1d253aabceeea2d
+  Expo: 33132a667698a3259a4e6c0af1b4936388e5fa33
   ExpoAsset: 323700f291684f110fb55f0d4022a3362ea9f875
+  ExpoDevice: fc94f0e42ecdfd897e7590f2874fc64dfa7e9b1c
   ExpoFileSystem: 80bfe850b1f9922c16905822ecbf97acd711dc51
-  ExpoFont: e7f2275c10ca8573c991e007329ad6bf98086485
-  ExpoHead: 342c7a6692f00bd9f23169183098a5c78eebe644
+  ExpoFont: 00756e6c796d8f7ee8d211e29c8b619e75cbf238
+  ExpoHead: fcb28a68ed4ba28f177394d2dfb8a0a8824cd103
+  ExpoImagePicker: 12a420923383ae38dccb069847218f27a3b87816
   ExpoKeepAwake: 3b8815d9dd1d419ee474df004021c69fdd316d08
-  ExpoModulesCore: 17a5163fddddcc6472ccf9d57a64f5a075a4c6db
+  ExpoModulesCore: db3e31e694684f08223d713e89f7648c6d3e04d0
   EXSplashScreen: d8b3c547b9b18a41d80c6f6b274c4c26664febd4
   FBLazyVector: ac12dc084d1c8ec4cc4d7b3cf1b0ebda6dab85af
   Firebase: cec914dab6fd7b1bd8ab56ea07ce4e03dd251c2d
@@ -2662,9 +2757,12 @@ SPEC CHECKSUMS:
   FirebaseCoreInternal: df84dd300b561c27d5571684f389bf60b0a5c934
   FirebaseFirestore: f258936f52d712337233182b90042a76ff48dce0
   FirebaseFirestoreInternal: f43d25cc04835ec3aa1885f4fc946a1a4f9e1c56
+  FirebaseInstallations: 913cf60d0400ebd5d6b63a28b290372ab44590dd
+  FirebaseMessaging: 7b5d8033e183ab59eb5b852a53201559e976d366
   FirebaseSharedSwift: 20530f495084b8d840f78a100d8c5ee613375f6e
   fmt: 4c2741a687cc09f0634a2e2c72a838b99f1ff120
   glog: fdfdfe5479092de0c4bdbebedd9056951f092c4f
+  GoogleDataTransport: 6c09b596d841063d76d4288cc2d2f42cc36e1e2a
   GoogleUtilities: ea963c370a38a8069cc5f7ba4ca849a60b6d7d15
   "gRPC-C++": e725ef63c4475d7cdb7e2cf16eb0fde84bd9ee51
   gRPC-Core: eee4be35df218649fe66d721a05a7f27a28f069b
@@ -2697,6 +2795,7 @@ SPEC CHECKSUMS:
   React-jsitracing: c83efb63c8e9e1dff72a3c56e88ae1c530a87795
   React-logger: 257858bd55f3a4e1bc0cf07ddc8fb9faba6f8c7c
   React-Mapbuffer: dce508662b995ffefd29e278a16b78217039d43d
+  react-native-image-picker: 8b791a2bec6da84ca7d8cbcad30da159d6dd6da4
   react-native-safe-area-context: a240ad4b683349e48b1d51fed1611138d1bdad97
   React-nativeconfig: f326487bc61eba3f0e328da6efb2711533dcac46
   React-NativeModulesApple: d89733f5baed8b9249ca5a8e497d63c550097312
@@ -2722,11 +2821,13 @@ SPEC CHECKSUMS:
   React-utils: 3f1fcffc14893afb9a7e5b7c736353873cc5fc95
   ReactCommon: f79ae672224dc1e6c2d932062176883c98eebd57
   RecaptchaInterop: 7d1a4a01a6b2cb1610a47ef3f85f0c411434cb21
-  RNCAsyncStorage: ec53e44dc3e75b44aa2a9f37618a49c3bc080a7a
+  RNCAsyncStorage: 826b603ae9c0f88b5ac4e956801f755109fa4d5c
+  RNCPicker: 3e2c37a8328f368ce14da050cdc8231deb5fc9f9
   RNDateTimePicker: b6a9b35a785ecbe12b4e7d6de5439d0aa4614146
   RNFBApp: 10819a4f67d634fe34aa607c6d1e8a8aef019308
   RNFBAuth: 43dea92a17ffa9481029a50df0e8c50943ec495a
   RNFBFirestore: e47cdde04ea3d9e73e58e037e1aa1d0b1141c316
+  RNFBMessaging: 652aac21d91b8ddb85a5e25c0f04150ef60b5384
   RNGestureHandler: 20a4307fd21cbff339abfcfa68192f3f0a6a518b
   RNScreens: 30249f9331c3b00ae7cb7922e11f58b3ed369c07
   SocketRocket: abac6f5de4d4d62d24e11868d7a2f427e0ef940d
@@ -2734,4 +2835,4 @@ SPEC CHECKSUMS:
 
 PODFILE CHECKSUM: 57d6cbca467ef5fd6a3ff4957986e8722f5c97e4
 
-COCOAPODS: 1.15.2
+COCOAPODS: 1.16.2

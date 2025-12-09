@@ -49,40 +49,60 @@ const SharedProducts = () => {
     setSharedProducts(productsData);
     setLoading(false);
   };
+  const shuffleArray = (array) => {
+    let currentIndex = array.length, randomIndex;
+  
+    // While there remain elements to shuffle...
+    while (currentIndex !== 0) {
+      // Pick a remaining element...
+      randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex--;
+  
+      // And swap it with the current element.
+      [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+    }
+  
+    return array;
+  };
+  
 
   const handleAddProduct = async () => {
     if (!productName) {
       alert('Please enter a product name');
       return;
     }
-
+  
     try {
+      // Shuffle the usernames and select the first one
+      const shuffledUsernames = shuffleArray([...flatMembUsernames]);
+      const nextUser = shuffledUsernames[0];
+  
       const newProduct = {
         name: productName,
         flatID: flatNum,
-        purchasedBy: flatMembUsernames[0],
+        purchasedBy: nextUser, // Use the first username from the shuffled list
         status: 'available',
       };
-
+  
       const productRef = await addDoc(collection(firestore, 'sharedProducts'), newProduct);
-
+  
       const flatQuery = query(collection(firestore, 'flats'), where('flatNum', '==', flatNum));
       const flatSnapshot = await getDocs(flatQuery);
-
+  
       if (!flatSnapshot.empty) {
         const flatDoc = flatSnapshot.docs[0];
         await updateDoc(doc(firestore, 'flats', flatDoc.id), {
           activeProducts: arrayUnion(productRef.id),
         });
       }
-
+  
       setProductName('');
       fetchSharedProducts();
     } catch (error) {
       alert('Error adding product: ' + error.message);
     }
   };
-
+  
   const handleUseProduct = async (product) => {
     try {
       const nextUser = getNextUser(product.purchasedBy);
@@ -171,10 +191,14 @@ const SharedProducts = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+
         <Text style={styles.title}>Shared Products</Text>
+       
+        
         <TouchableOpacity onPress={handleReload}>
           <Ionicons name="reload" size={24} color={Colors.primary} />
         </TouchableOpacity>
+
       </View>
       <TextInput
         style={styles.input}
@@ -186,6 +210,9 @@ const SharedProducts = () => {
       <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
         <Text style={styles.addButtonText}>Add Product</Text>
       </TouchableOpacity>
+      {/* <View>
+        <Text style = {styles.disclaimerText}>Note: New products are randomly assigned to a user as the purchaser and marked as available.</Text>
+      </View> */}
       {loading ? (
         <ActivityIndicator size="large" color={Colors.primary} />
       ) : (
@@ -292,5 +319,9 @@ const styles = StyleSheet.create({
   removeButtonText: {
     color: '#fff',
     fontSize: FontSize.medium,
+  },
+  disclaimerText: {
+    color: 'red',
+    marginBottom: 10,
   },
 });

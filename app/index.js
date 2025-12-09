@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import WelcomeScreen from "../welcome/WelcomeScreen"; 
 import AppNavigator from "./AppNavigator";
+import registerNNPushToken from 'native-notify';
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -13,6 +14,8 @@ const firebaseConfig = {
   appId: "1:369948891874:web:5dbe9d9c3616da160b9cbb",
   measurementId: "G-MTV0H8F1Y1"
 };
+
+
 
 
 const App = () => {
