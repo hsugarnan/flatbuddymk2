@@ -60,11 +60,12 @@ const SignUpScreen = ({ navigation }) => {
       // Successfully created a new user
       const user = userCredential.user;
       setUser(user);
+      const normalisedEmail = email.toLowerCase();
       
 
       // Store additional user data in Firestore
       await setDoc(doc(firestore, 'users', user.uid), {
-        email: email,
+        email: normalisedEmail,
         username: username,
         flatNum: "",
         imgLink: getRandomImage(),

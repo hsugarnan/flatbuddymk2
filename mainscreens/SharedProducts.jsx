@@ -19,9 +19,17 @@ const firebaseConfig = {
 };
 
 const SharedProducts = () => {
+  const [activeTab, setActiveTab] = useState('products'); 
   const [productName, setProductName] = useState('');
   const [sharedProducts, setSharedProducts] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // EXPENSE STATE
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseUser, setExpenseUser] = useState('');
+  const [expenseDesc, setExpenseDesc] = useState('');
+  const [expenses, setExpenses] = useState([]);
+
   const { flatNum, flatMembUsernames, username } = useFetchUser();
 
   const app = initializeApp(firebaseConfig);
@@ -29,8 +37,12 @@ const SharedProducts = () => {
 
   useEffect(() => {
     fetchSharedProducts();
+    fetchExpenses();
   }, [flatNum]);
 
+  // ------------------------------
+  // PRODUCTS
+  // ------------------------------
   const fetchSharedProducts = async () => {
     if (!flatNum) return;
 
@@ -39,105 +51,101 @@ const SharedProducts = () => {
     const querySnapshot = await getDocs(productsQuery);
     const productsData = [];
 
-    querySnapshot.forEach(doc => {
-      const data = doc.data();
+    querySnapshot.forEach(docSnap => {
+      const data = docSnap.data();
       if (data.flatID === flatNum) {
-        productsData.push({ ...data, id: doc.id });
+        productsData.push({ ...data, id: docSnap.id });
       }
     });
 
     setSharedProducts(productsData);
     setLoading(false);
   };
+
   const shuffleArray = (array) => {
     let currentIndex = array.length, randomIndex;
-  
-    // While there remain elements to shuffle...
+
     while (currentIndex !== 0) {
-      // Pick a remaining element...
       randomIndex = Math.floor(Math.random() * currentIndex);
       currentIndex--;
-  
-      // And swap it with the current element.
-      [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+
+      [array[currentIndex], array[randomIndex]] =
+        [array[randomIndex], array[currentIndex]];
     }
-  
     return array;
   };
-  
 
   const handleAddProduct = async () => {
     if (!productName) {
       alert('Please enter a product name');
       return;
     }
-  
+
     try {
-      // Shuffle the usernames and select the first one
-      const shuffledUsernames = shuffleArray([...flatMembUsernames]);
-      const nextUser = shuffledUsernames[0];
-  
+      const shuffled = shuffleArray([...flatMembUsernames]);
+      const nextUser = shuffled[0];
+
       const newProduct = {
         name: productName,
         flatID: flatNum,
-        purchasedBy: nextUser, // Use the first username from the shuffled list
+        purchasedBy: nextUser,
         status: 'available',
       };
-  
-      const productRef = await addDoc(collection(firestore, 'sharedProducts'), newProduct);
-  
+
+      const ref = await addDoc(collection(firestore, 'sharedProducts'), newProduct);
+
       const flatQuery = query(collection(firestore, 'flats'), where('flatNum', '==', flatNum));
       const flatSnapshot = await getDocs(flatQuery);
-  
+
       if (!flatSnapshot.empty) {
         const flatDoc = flatSnapshot.docs[0];
         await updateDoc(doc(firestore, 'flats', flatDoc.id), {
-          activeProducts: arrayUnion(productRef.id),
+          activeProducts: arrayUnion(ref.id),
         });
       }
-  
+
       setProductName('');
       fetchSharedProducts();
     } catch (error) {
-      alert('Error adding product: ' + error.message);
+      alert(error.message);
     }
   };
-  
+
+  const getNextUser = (currentUser) => {
+    const i = flatMembUsernames.indexOf(currentUser);
+    return flatMembUsernames[(i + 1) % flatMembUsernames.length];
+  };
+
   const handleUseProduct = async (product) => {
     try {
-      const nextUser = getNextUser(product.purchasedBy);
-      const productRef = doc(firestore, 'sharedProducts', product.id);
+      const next = getNextUser(product.purchasedBy);
+      const ref = doc(firestore, 'sharedProducts', product.id);
 
-      await updateDoc(productRef, {
-        purchasedBy: nextUser,
+      await updateDoc(ref, {
+        purchasedBy: next,
         status: 'to be purchased',
       });
 
       fetchSharedProducts();
-      alert(`Product used up. ${nextUser} will purchase next.`);
     } catch (error) {
-      alert('Error updating product: ' + error.message);
+      alert(error.message);
     }
   };
 
   const handlePurchaseProduct = async (product) => {
     try {
-      const productRef = doc(firestore, 'sharedProducts', product.id);
+      const ref = doc(firestore, 'sharedProducts', product.id);
 
-      await updateDoc(productRef, {
-        status: 'available',
-      });
-
+      await updateDoc(ref, { status: 'available' });
       fetchSharedProducts();
-      alert('Product status updated to available.');
     } catch (error) {
-      alert('Error updating product: ' + error.message);
+      alert(error.message);
     }
   };
 
   const handleRemoveProduct = async (product) => {
     try {
-      const productRef = doc(firestore, 'sharedProducts', product.id);
+      const ref = doc(firestore, 'sharedProducts', product.id);
 
       const flatQuery = query(collection(firestore, 'flats'), where('flatNum', '==', flatNum));
       const flatSnapshot = await getDocs(flatQuery);
@@ -149,179 +157,483 @@ const SharedProducts = () => {
         });
       }
 
-      await deleteDoc(productRef);
-
+      await deleteDoc(ref);
       fetchSharedProducts();
     } catch (error) {
-      alert('Error removing product: ' + error.message);
+      alert(error.message);
     }
   };
 
-  const getNextUser = (currentUser) => {
-    const currentIndex = flatMembUsernames.indexOf(currentUser);
-    const nextIndex = (currentIndex + 1) % flatMembUsernames.length;
-    return flatMembUsernames[nextIndex];
+  // ------------------------------
+  // EXPENSES
+  // ------------------------------
+  const fetchExpenses = async () => {
+    if (!flatNum) return;
+
+    const queryRef = collection(firestore, 'expenses');
+    const snap = await getDocs(queryRef);
+
+    const data = [];
+    snap.forEach(docSnap => {
+      if (docSnap.data().flatID === flatNum) {
+        data.push({ id: docSnap.id, ...docSnap.data() });
+      }
+    });
+
+    setExpenses(data);
   };
 
-  const handleReload = () => {
-    fetchSharedProducts();
+  const addExpense = async () => {
+    if (!expenseAmount || !expenseDesc || !expenseUser) {
+      alert("Enter all fields");
+      return;
+    }
+
+    await addDoc(collection(firestore, 'expenses'), {
+      amount: parseFloat(expenseAmount),
+      description: expenseDesc,
+      addedBy: username,
+      expenseUser,
+      flatID: flatNum,
+      settled: false,
+      createdAt: new Date(),
+    });
+
+    setExpenseAmount('');
+    setExpenseDesc('');
+    setExpenseUser('');
+    fetchExpenses();
   };
 
+  const settleExpense = async (expense) => {
+    try {
+      const ref = doc(firestore, 'expenses', expense.id);
+
+      await updateDoc(ref, { settled: true });
+
+      fetchExpenses();
+    } catch (err) {
+      alert("Error settling expense: " + err.message);
+    }
+  };
+
+  // ------------------------------
+  // UI RENDERING
+  // ------------------------------
   const renderProduct = ({ item }) => (
     <View style={styles.productItem}>
       <Text style={styles.productName}>{item.name}</Text>
-      <Text style={styles.productStatus}>Status: {item.status}</Text>
-      <Text style={styles.productUser}>Purchaser: {item.purchasedBy}</Text>
+      <Text>Status: {item.status}</Text>
+      <Text>Purchaser: {item.purchasedBy}</Text>
+
       {item.status === 'available' && (
         <TouchableOpacity style={styles.useButton} onPress={() => handleUseProduct(item)}>
           <Text style={styles.useButtonText}>Use Up</Text>
         </TouchableOpacity>
       )}
+
       {item.status === 'to be purchased' && item.purchasedBy === username && (
         <TouchableOpacity style={styles.purchaseButton} onPress={() => handlePurchaseProduct(item)}>
           <Text style={styles.purchaseButtonText}>Purchased</Text>
         </TouchableOpacity>
       )}
+
       <TouchableOpacity style={styles.removeButton} onPress={() => handleRemoveProduct(item)}>
         <Text style={styles.removeButtonText}>Remove</Text>
       </TouchableOpacity>
     </View>
   );
 
+  // -------------------------------
+  // MAIN RETURN
+  // -------------------------------
   return (
     <View style={styles.container}>
+
+      {/* BEAUTIFUL PURPLE SEGMENT TOGGLE */}
       <View style={styles.header}>
+        <View style={styles.segmentWrapper}>
+          <View style={styles.segmentBackground}>
 
-        <Text style={styles.title}>Shared Products</Text>
-       
-        
-        <TouchableOpacity onPress={handleReload}>
-          <Ionicons name="reload" size={24} color={Colors.primary} />
+            <TouchableOpacity
+              style={[styles.segmentButton, activeTab === "products" && styles.segmentButtonActive]}
+              onPress={() => setActiveTab("products")}
+            >
+              <Text style={[styles.segmentText, activeTab === "products" && styles.segmentTextActive]}>
+                Products
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.segmentButton, activeTab === "expenses" && styles.segmentButtonActive]}
+              onPress={() => setActiveTab("expenses")}
+            >
+              <Text style={[styles.segmentText, activeTab === "expenses" && styles.segmentTextActive]}>
+                Expenses
+              </Text>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+
+        <TouchableOpacity onPress={fetchSharedProducts}>
+          <Ionicons name="reload" size={24} color={Colors.primary}/>
         </TouchableOpacity>
-
       </View>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter product name"
-        placeholderTextColor={Colors.text}
-        value={productName}
-        onChangeText={setProductName}
-      />
-      <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
-        <Text style={styles.addButtonText}>Add Product</Text>
-      </TouchableOpacity>
-      {/* <View>
-        <Text style = {styles.disclaimerText}>Note: New products are randomly assigned to a user as the purchaser and marked as available.</Text>
-      </View> */}
-      {loading ? (
-        <ActivityIndicator size="large" color={Colors.primary} />
-      ) : (
-        <FlatList
-          data={sharedProducts}
-          renderItem={renderProduct}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.productList}
-        />
+
+      {/* ---------------- PRODUCTS UI ---------------- */}
+      {activeTab === 'products' && (
+        <>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter product name"
+            value={productName}
+            onChangeText={setProductName}
+          />
+
+          <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
+            <Text style={styles.addButtonText}>Add Product</Text>
+          </TouchableOpacity>
+
+          {loading ? (
+            <ActivityIndicator size="large"/>
+          ) : (
+            <FlatList
+              data={sharedProducts}
+              renderItem={renderProduct}
+              keyExtractor={(item) => item.id}
+            />
+          )}
+        </>
       )}
+
+      {/* ---------------- EXPENSE UI ---------------- */}
+      {activeTab === 'expenses' && (
+        <View style={styles.expenseContainer}>
+
+          {/* FORM CARD */}
+          <View style={styles.expenseCard}>
+            <Text style={styles.sectionTitle}>Add New Expense</Text>
+
+            <TextInput
+              placeholder="Description"
+              value={expenseDesc}
+              onChangeText={setExpenseDesc}
+              style={styles.input}
+            />
+
+            <TextInput
+              placeholder="Amount (£)"
+              value={expenseAmount}
+              onChangeText={setExpenseAmount}
+              keyboardType="numeric"
+              style={styles.input}
+            />
+
+            <Text style={styles.subHeading}>Assign to:</Text>
+
+            <View style={styles.userGrid}>
+              {flatMembUsernames.map(member => (
+                <TouchableOpacity
+                  key={member}
+                  style={[
+                    styles.userPill,
+                    expenseUser === member && styles.userPillSelected
+                  ]}
+                  onPress={() => setExpenseUser(member)}
+                >
+                  <Text
+                    style={[
+                      styles.userPillText,
+                      expenseUser === member && styles.userPillTextSelected
+                    ]}
+                  >
+                    {member}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.addExpenseButton} onPress={addExpense}>
+              <Text style={styles.addExpenseButtonText}>Add Expense</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* EXPENSE HISTORY */}
+          <Text style={styles.sectionTitle}>Expense History</Text>
+
+          <FlatList
+            data={expenses.filter(e => !e.settled)}
+            keyExtractor={(item) => item.id}
+            ListEmptyComponent={<Text style={styles.emptyText}>No outstanding expenses</Text>}
+            renderItem={({ item }) => (
+              <View style={styles.expenseItemCard}>
+
+                <View style={styles.expenseRow}>
+                  <Text style={styles.expenseItemTitle}>{item.description}</Text>
+                  <Text style={styles.expenseAmount}>£{item.amount}</Text>
+                </View>
+
+                <Text style={styles.expenseMeta}>
+                  Added by <Text style={styles.bold}>{item.addedBy}</Text>
+                </Text>
+
+                {item.expenseUser && (
+                  <Text style={styles.expenseMeta}>
+                    Assigned to <Text style={styles.bold}>{item.expenseUser}</Text>
+                  </Text>
+                )}
+
+                {/* SETTLE UP BUTTON */}
+                {!item.settled ? (
+                  <TouchableOpacity
+                    style={styles.settleButton}
+                    onPress={() => settleExpense(item)}
+                  >
+                    <Text style={styles.settleButtonText}>
+                      {username === item.expenseUser ? "Settle Up" : "Mark as Settled"}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={styles.settledText}>✓ Settled</Text>
+                )}
+
+              </View>
+            )}
+          />
+        </View>
+      )}
+
     </View>
   );
 };
 
 export default SharedProducts;
 
+//
+// --------------------- STYLES ---------------------
+//
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: Spacing * 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFF",
   },
+
+  // SEGMENT SWITCH
+  segmentWrapper: {
+    width: "70%",
+  },
+  segmentBackground: {
+    flexDirection: "row",
+    backgroundColor: "#A24BF4",
+    borderRadius: 30,
+    padding: 4,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 30,
+    alignItems: "center",
+  },
+  segmentButtonActive: {
+    backgroundColor: "white",
+  },
+  segmentText: {
+    color: "white",
+    fontSize: FontSize.medium,
+    fontWeight: "600",
+  },
+  segmentTextActive: {
+    color: "#A24BF4",
+    fontWeight: "700",
+  },
+
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
   },
-  title: {
-    fontSize: FontSize.xxLarge,
-    color: Colors.primary,
-    marginBottom: Spacing * 3,
-  },
+
+  // INPUT
   input: {
-    width: '100%',
-    padding: Spacing * 2,
-    marginVertical: Spacing,
-    borderColor: Colors.border,
     borderWidth: 1,
-    borderRadius: Spacing,
-    color: Colors.text,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
   },
+
   addButton: {
     backgroundColor: Colors.primary,
-    padding: Spacing * 2,
-    borderRadius: Spacing,
-    alignItems: 'center',
-    marginVertical: Spacing,
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 20,
   },
   addButtonText: {
     color: Colors.onPrimary,
-    fontSize: FontSize.large,
+    fontWeight: "700",
   },
-  productList: {
-    marginTop: Spacing * 2,
-  },
+
+  // PRODUCT ITEMS
   productItem: {
-    backgroundColor: '#f9f9f9',
-    padding: Spacing * 2,
-    borderRadius: Spacing,
-    marginBottom: Spacing,
+    backgroundColor: "#f5f5f5",
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 14,
   },
   productName: {
-    fontSize: FontSize.large,
+    fontWeight: "700",
     color: Colors.primary,
-  },
-  productStatus: {
-    fontSize: FontSize.medium,
-    color: Colors.secondary,
-  },
-  productUser: {
-    fontSize: FontSize.medium,
-    color: Colors.secondary,
+    fontSize: FontSize.large,
   },
   useButton: {
-    marginTop: Spacing,
+    marginTop: 10,
     backgroundColor: Colors.primary,
-    padding: Spacing,
-    borderRadius: Spacing,
-    alignItems: 'center',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
   },
   useButtonText: {
-    color: Colors.onPrimary,
-    fontSize: FontSize.medium,
+    color: "#FFF",
   },
   purchaseButton: {
-    marginTop: Spacing,
-    backgroundColor: '#A020F0',
-    padding: Spacing,
-    borderRadius: Spacing,
-    alignItems: 'center',
+    marginTop: 10,
+    backgroundColor: "#A020F0",
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
   },
   purchaseButtonText: {
-    color: '#fff',
-    fontSize: FontSize.medium,
-    fontWeight: 'bold',
+    color: "#FFF",
   },
   removeButton: {
-    marginTop: Spacing,
-    backgroundColor: '#ff4444',
-    padding: Spacing,
-    borderRadius: Spacing,
-    alignItems: 'center',
+    marginTop: 10,
+    backgroundColor: "#ff4444",
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
   },
   removeButtonText: {
-    color: '#fff',
-    fontSize: FontSize.medium,
+    color: "#FFF",
   },
-  disclaimerText: {
-    color: 'red',
+
+  // EXPENSE UI
+  expenseContainer: {
+    marginTop: 10,
+  },
+
+  sectionTitle: {
+    fontSize: FontSize.large,
+    fontWeight: "700",
+    color: Colors.primary,
     marginBottom: 10,
+  },
+
+  expenseCard: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    elevation: 2,
+  },
+
+  subHeading: {
+    fontWeight: "600",
+    marginTop: 10,
+    marginBottom: 6,
+  },
+
+  userGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+
+  userPill: {
+    backgroundColor: "#eee",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+  },
+  userPillSelected: {
+    backgroundColor: Colors.primary,
+  },
+  userPillText: {
+    color: "#333",
+  },
+  userPillTextSelected: {
+    color: "white",
+    fontWeight: "700",
+  },
+
+  addExpenseButton: {
+    backgroundColor: Colors.primary,
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  addExpenseButtonText: {
+    color: "white",
+    fontWeight: "700",
+  },
+
+  expenseItemCard: {
+    backgroundColor: "#fafafa",
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#eee",
+    marginBottom: 14,
+  },
+
+  expenseRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  expenseItemTitle: {
+    fontSize: FontSize.large,
+    fontWeight: "700",
+    color: Colors.primary,
+  },
+  expenseAmount: {
+    fontSize: FontSize.large,
+    fontWeight: "700",
+    color: "#4CAF50",
+  },
+
+  expenseMeta: {
+    color: "#777",
+    marginTop: 4,
+  },
+  bold: {
+    fontWeight: "700",
+  },
+
+  // SETTLE UP BUTTON
+  settleButton: {
+    backgroundColor: "#4CAF50",
+    marginTop: 10,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  settleButtonText: {
+    color: "white",
+    fontWeight: "700",
+  },
+  settledText: {
+    marginTop: 10,
+    color: "#4CAF50",
+    fontWeight: "800",
+  },
+
+  emptyText: {
+    textAlign: "center",
+    marginTop: 20,
+    color: "#777",
   },
 });

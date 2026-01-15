@@ -18,6 +18,7 @@ const useFetchUser = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [flatNum, setFlatNum] = useState('');
+  const [userExpenses, setUserExpenses] = useState([]);
   const [flatName, setFlatName] = useState('');
   const [flatMemb, setFlatMemb] = useState([]);
   const [flatMembUsernames, setFlatMembUsernames] = useState([]);
@@ -54,6 +55,7 @@ const useFetchUser = () => {
 
             setFlatName(flatData.flatName || "");
             setFlatMemb(flatData.userEmails || []);
+
 
             // Fetch usernames + images for all occupants
             fetchUsernamesAndImgLinks(flatData.userEmails || []);
@@ -92,11 +94,18 @@ const useFetchUser = () => {
           if (!usersSnapshot.empty) {
             const data = usersSnapshot.docs[0].data();
 
+  
+            
+
             return {
               username:
                 (data.username && data.username.trim() !== "")
                   ? data.username
+                  
                   : email.split("@")[0], // <-- FIX: fallback to name, NOT email
+
+
+              
               imgLink: data.imgLink || ""
             };
           }
@@ -119,6 +128,27 @@ const useFetchUser = () => {
 
     setFlatMembUsernames(userData.map(u => u.username));
     setFlatMembImgLinks(userData.map(u => u.imgLink));
+  };
+
+  const fetchUserExpenses = async () => {
+    if (!flatNum) return;
+  
+    const expensesQuery = query(
+      collection(firestore, 'expenses'),
+      where('flatID', '==', flatNum)
+    );
+    const snapshot = await getDocs(expensesQuery);
+  
+    const expenseList = [];
+  
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      if (!data.settled) {
+        expenseList.push({ ...data, id: docSnap.id });
+      }
+    });
+  
+    setUserExpenses(expenseList);
   };
 
   // --- Refetch Helper ---
@@ -157,10 +187,11 @@ const useFetchUser = () => {
     flatName,
     flatMemb,
     flatMembUsernames,
+    userExpenses,
     flatMembImgLinks,
     loading,
     error,
-    refetch
+    refetch,
   };
 };
 

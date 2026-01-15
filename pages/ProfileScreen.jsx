@@ -11,15 +11,15 @@ import { auth, firestore } from '../config/firebase';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import Entypo from '@expo/vector-icons/Entypo';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as Device from 'expo-device';               // For checking if the app is running on a physical device
-import * as Notifications from 'expo-notifications'; // For handling notifications
-import Constants from 'expo-constants';              // For accessing app constants (e.g., project ID)
+import * as Device from 'expo-device';               //for checking if the app is running on a physical device
+import * as Notifications from 'expo-notifications'; //for handling notifications
+import Constants from 'expo-constants';              //for accessing app constants (e.g., project ID)
 import { useFocusEffect } from '@react-navigation/native';
 import {
   collection, getDocs, query, where, doc, setDoc, updateDoc, arrayRemove, deleteDoc, addDoc
 } from 'firebase/firestore';
 import { signOut, deleteUser } from 'firebase/auth';
-import { Picker } from '@react-native-picker/picker'; // Import Picker component
+import { Picker } from '@react-native-picker/picker'; //import Picker component
 
 const ProfileScreen = ({ route, navigation }) => {
   const [overdueChores, setOverdueChores] = useState([]);
@@ -27,9 +27,11 @@ const ProfileScreen = ({ route, navigation }) => {
   const [mess, setMess] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [reload, setReload] = useState(false);
+  const [expenseUser, setExpenseUser] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [messName, setMessName] = useState('');
+  const [userExpenses, setUserExpenses] = useState([]);
   const [messDescription, setMessDescription] = useState('');
   const [messResponsible, setMessResponsible] = useState('');
   const { user, username, flatNum, email, flatMembUsernames, flatMembImgLinks, flatName, loading, error, refetch, imgLink, flatMemb } = useFetchUser();
@@ -46,9 +48,11 @@ const ProfileScreen = ({ route, navigation }) => {
   useEffect(() => {
     if (auth.currentUser && flatNum) {
       fetchOverdueChores();
+      fetchUserExpenses(); 
       fetchSharedProducts();
       fetchMessData();
       registerForPushNotificationsAsync();
+
     }
   }, [auth.currentUser, flatNum, reload]);
 
@@ -87,12 +91,32 @@ const ProfileScreen = ({ route, navigation }) => {
     setSharedProducts(productsData);
   };
 
+  const renderExpensesStatus = (username) => {
+    const hasOutstandingExpenses = userExpenses.some(
+      expense => expense.expenseUser === username
+    );
+  
+    return (
+      <View style={styles.statusContainer}>
+        <Text style={styles.statusText}>
+          {hasOutstandingExpenses ? "Outstanding Expenses" : "No Outstanding Expenses"}
+        </Text>
+        {hasOutstandingExpenses ? (
+          <Entypo name="circle-with-cross" size={24} color="red" style={styles.icon} />
+        ) : (
+          <AntDesign name="checkcircle" size={24} color="green" style={styles.icon} />
+        )}
+      </View>
+    );
+  };
+  
+
 
 
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    Promise.all([fetchOverdueChores(), fetchSharedProducts(), fetchMessData(),refetch()]).then(() => setRefreshing(false));
+    Promise.all([fetchOverdueChores(), fetchSharedProducts(), fetchUserExpenses(), fetchMessData(),refetch()]).then(() => setRefreshing(false));
   }, []);
 
   const handleReload = () => {
@@ -103,40 +127,40 @@ const ProfileScreen = ({ route, navigation }) => {
 
 
   async function requestPermissions() {
-    if (Device.isDevice) {  // Ensures this is running on a physical device
-      const { status: existingStatus } = await Notifications.getPermissionsAsync(); // Check current permission status
+    if (Device.isDevice) {  //ensures this is running on a physical device
+      const { status: existingStatus } = await Notifications.getPermissionsAsync(); //check current permission status
       let finalStatus = existingStatus;
   
-      if (existingStatus !== 'granted') {  // If not already granted, request permission
+      if (existingStatus !== 'granted') {  //if not already granted, request permission
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
   
-      if (finalStatus !== 'granted') {  // If permission is still not granted, alert the user
+      if (finalStatus !== 'granted') {  //if permission is still not granted, alert the user
         alert('Failed to get push token for push notification!');
         return false;
       }
   
-      return true;  // Return true if permission is granted
+      return true;  //return true if permission is granted
     } else {
-      alert('Must use physical device for Push Notifications');  // Alert if not on a physical device
+      alert('Must use physical device for Push Notifications');  //alert if not on a physical device
       return false;
     }
   }
   
   async function registerForPushNotificationsAsync() {
     let token;
-    if (Platform.OS === 'android' || Platform.OS === 'ios') {  // Checks if the app is running on a physical device
-      const hasPermission = await requestPermissions();  // Call the permission request function
-      if (!hasPermission) return;  // If permissions are not granted, exit the function
+    if (Platform.OS === 'android' || Platform.OS === 'ios') {  //checks if the app is running on a physical device
+      const hasPermission = await requestPermissions();  //call the permission request function
+      if (!hasPermission) return;  //if permissions are not granted, exit the function
   
-      token = await Notifications.getExpoPushTokenAsync({  // If permissions are granted, get the FCM token
+      token = await Notifications.getExpoPushTokenAsync({  //if permissions are granted, get the FCM token
         projectId: Constants.expoConfig?.extra?.eas.projectId,
       });
-      console.log(token);  // Log the token or send it to your backend
+      console.log(token);  //log the token or send it to your backend
       await savePushTokenToFirestore(user.uid,token)
   
-      // Additional Android-specific settings
+      //additional Android-specific settings
       if (Platform.OS === 'android') {
         Notifications.setNotificationChannelAsync('default', {
           name: 'default',
@@ -146,31 +170,52 @@ const ProfileScreen = ({ route, navigation }) => {
         });
       }
     } else {
-      alert('Must use physical device for Push Notifications');  // Alert if not on a physical device
+      alert('Must use physical device for Push Notifications');  //alert if not on a physical device
     }
     
-    return token;  // Return the FCM token
+    return token;  //return the FCM token
   }
 
+  const fetchUserExpenses = async () => {
+    if (!flatNum) return;
+  
+    const expensesQuery = query(
+      collection(firestore, 'expenses'),
+      where('flatID', '==', flatNum)
+    );
+    const snapshot = await getDocs(expensesQuery);
+  
+    const expenseList = [];
+  
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      if (!data.settled) {
+        expenseList.push({ ...data, id: docSnap.id });
+      }
+    });
+  
+    setUserExpenses(expenseList);
+  };
+  
 
   const savePushTokenToFirestore = async (userId, token) => {
     try {
-      // Reference to the user's document
+      //reference to the user's document
       const userRef = doc(firestore, 'users', userId);
       
-      // Set the push token in the user's document
+      //set the push token in the user's document
       await setDoc(userRef, { expoPushToken: token }, { merge: true });
   
-      // Log success message
+      //log success message
       console.log(`Push token for user ${userId} saved successfully.`);
       
-      // Optionally, return a confirmation message
+      //optionally, return a confirmation message
       return { success: true, message: `Push token saved for user ${userId}` };
     } catch (error) {
-      // Log error message
+      //log error message
       console.error('Error saving push token:', error);
       
-      // Optionally, return an error message
+      //optionally, return an error message
       return { success: false, message: 'Failed to save push token', error };
     }
   };
@@ -225,23 +270,27 @@ const ProfileScreen = ({ route, navigation }) => {
 
  
   const issueCheck = (username) => {
-    // Determine if the user has mess responsibilities
+    //determine if the user has mess responsibilities
     const hasMess = mess.some(item => item.messResponsible === username);
+
+    const hasExpenses = userExpenses.some(
+      expense => expense.expenseUser === username
+    );
     
-    // Determine if the user has shared products to purchase
+    //determine if the user has shared products to purchase
     const hasSharedProducts = sharedProducts.some(product => product.purchasedBy === username && product.status === 'to be purchased');
     
-    // Determine if the user has overdue chores
+    //determine if the user has overdue chores
     const hasOverdueChores = overdueChores.some(chore => chore.userEmail === username);
   
     
   
-    // Return the cross icon if any issues are found
-    if (hasMess || hasSharedProducts || hasOverdueChores) {
+    //return the cross icon if any issues are found
+    if (hasMess || hasSharedProducts || hasOverdueChores || hasExpenses) {
       return <AntDesign name="exclamationcircle" size={24} color="red" style={styles.icon} />;
     }
   
-    // Return null if no issues are found
+    //return null if no issues are found
     return null;
   };
   
@@ -346,22 +395,22 @@ const ProfileScreen = ({ route, navigation }) => {
 
   const handleReportSubmit = async () => {
     try {
-      // Access the 'mess' collection in Firestore
+      //access the 'mess' collection in Firestore
       const messCollection = collection(firestore, 'mess');
       
-      // Add a new document to the 'mess' collection with the provided data
+      //add a new document to the 'mess' collection with the provided data
       await addDoc(messCollection, {
         messName: messName,
         messDescription: messDescription,
         messResponsible: messResponsible,
-        flatCode: flatNum // Assuming flatNum is the code of the flat, you should pass it as an argument or access it from the state
+        flatCode: flatNum //assuming flatNum is the code of the flat, you should pass it as an argument or access it from the state
       });
   
-      // Show a success alert
+      //show a success alert
       Alert.alert('Report Submitted', 'Your report has been submitted.');
       console.log('Report submitted:', { messName, messDescription, messResponsible, flatNum });
   
-      // Reset the form and close the modal
+      //reset the form and close the modal
       setShowReportModal(false);
       setMessName('');
       setMessDescription('');
@@ -468,7 +517,6 @@ const ProfileScreen = ({ route, navigation }) => {
     );
   }
 
-  console.log("DEBUG username:", username);
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -503,7 +551,7 @@ const ProfileScreen = ({ route, navigation }) => {
           <View style={styles.occupantRow}>
             <View style={styles.leftColumn}>
               <Image
-                source={{ uri: flatMembImgLinks[index] || 'https://via.placeholder.com/150' }}
+                source={{ uri: flatMembImgLinks[index] || 'https://cdn-icons-png.freepik.com/512/8637/8637477.png' }}
                 style={styles.profileImage}
               />
               <Text style={styles.arrayItem}>{item}</Text>
@@ -532,6 +580,7 @@ const ProfileScreen = ({ route, navigation }) => {
             <Text style={styles.modalTitle}>{selectedUser}</Text>
             {renderOverdue(selectedUser)}
             {renderSharedProducts(selectedUser)}
+            {renderExpensesStatus(selectedUser)}
             {renderMessStatus(selectedUser)}
 
             <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
