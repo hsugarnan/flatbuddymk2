@@ -1,39 +1,103 @@
-import { Dimensions, SafeAreaView, StyleSheet, Text, View, TouchableOpacity, ImageBackground } from "react-native";
+import { Dimensions, SafeAreaView, StyleSheet, Text, View, TouchableOpacity, ImageBackground, Platform } from "react-native";
 import React, { useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import Spacing from "../constants/Spacing";
+import * as Notifications from 'expo-notifications';
 import FontSize from "../constants/FontSize";
 import Colors from "../constants/Colors";
+import { auth, firestore } from "../config/firebase";
 
-const { height } = Dimensions.get("window"); //getting the dimensions of the screen
+const { height } = Dimensions.get("window");
+
+// Configure notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 const WelcomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
-  const auth = getAuth(); //Initialize Firebase Auth
+
+  const updatePushTokenForUser = async (currentUser) => {
+    try {
+      console.log('📱 Requesting notification permissions...');
+      
+      // Request permissions with proper error handling
+      const permissionResult = await Notifications.requestPermissionsAsync();
+      
+      if (!permissionResult || !permissionResult.granted) {
+        console.log('❌ Notification permission denied or unavailable');
+        return;
+      }
+
+      console.log('✅ Notification permission granted');
+
+      // Get the Expo push token
+      const expoPushToken = await Notifications.getExpoPushTokenAsync({
+        projectId: 'a0e3eaf8-1866-44b1-a7c1-6e12f2daaae5', // Replace with your actual Expo project ID
+      });
+
+      console.log('✅ Expo Push Token:', expoPushToken.data);
+
+      // Update Firestore with the token
+      await updateDoc(doc(firestore, 'users', currentUser.uid), {
+        expoPushToken: expoPushToken.data,
+        pushPlatform: Platform.OS,
+        pushUpdatedAt: serverTimestamp(),
+      });
+
+      console.log('✅ Push token saved to Firestore');
+    } catch (error) {
+      console.error('❌ Error updating push token:', error);
+      console.error('Error details:', error.message);
+    }
+  };
 
   useEffect(() => {
-    //check authentication status
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        // User is signed in
-        setUser(currentUser);
-        console.log("Welcome"); // Log welcome message
-        navigation.replace('Main'); // Navigate to Home or another authenticated screen
-      } else {
-        // No user is signed in
-        setUser(null);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      try {
+        if (currentUser) {
+          console.log("✅ User logged in:", currentUser.uid);
+          await updatePushTokenForUser(currentUser);
+          navigation.replace('Main');
+        } else {
+          console.log("❌ No user logged in");
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error in auth state change:', error);
+        setLoading(false);
       }
-      setLoading(false); // Set loading to false when done
     });
 
-    return () => unsubscribe(); // Clean up the subscription on unmount
+    return () => unsubscribe();
   }, [auth, navigation]);
+
+  // Set up notification listeners
+  useEffect(() => {
+    const notificationListener = Notifications.addNotificationReceivedListener(notification => {
+      console.log('📬 Notification received:', notification);
+    });
+
+    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('👆 Notification tapped:', response);
+      // Handle notification tap - navigate to relevant screen
+    });
+
+    return () => {
+      Notifications.removeNotificationSubscription(notificationListener);
+      Notifications.removeNotificationSubscription(responseListener);
+    };
+  }, []);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        {/* <Text>Loading...</Text> Show loading indicator */}
+        <Text style={styles.loadingText}>Loading...</Text>
       </SafeAreaView>
     );
   }
@@ -44,7 +108,7 @@ const WelcomeScreen = ({ navigation }) => {
         <ImageBackground
           style={styles.image}
           resizeMode="contain"
-          source={require("../images/welcomePic.png")} // Ensure this path is correct
+          source={require("../images/welcomePic.png")}
         />
       </View>
 
@@ -70,7 +134,7 @@ const WelcomeScreen = ({ navigation }) => {
       </View>
     </SafeAreaView>
   );
-}
+};
 
 export default WelcomeScreen;
 
@@ -132,5 +196,10 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: FontSize.large,
     textAlign: "center",
+  },
+  loadingText: {
+    fontSize: FontSize.large,
+    textAlign: 'center',
+    color: Colors.text,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import Spacing from '../constants/Spacing';
 import FontSize from '../constants/FontSize';
@@ -7,6 +7,7 @@ import { auth, firestore } from '../config/firebase'; // Import the auth and fir
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { registerIndieID, unregisterIndieDevice } from 'native-notify';
+import * as Notifications from 'expo-notifications';
 
 const SignUpScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
@@ -24,6 +25,16 @@ const SignUpScreen = ({ navigation }) => {
     
     
   ];
+
+  const requestPermission = async () => {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== 'granted') return null;
+
+    const token = await Notifications.getExpoPushTokenAsync();
+    console.log(token.data)
+    return token.data;
+
+  };
 
   const getRandomImage = () => {
     const randomIndex = Math.floor(Math.random() * imageUrls.length);
@@ -53,6 +64,7 @@ const SignUpScreen = ({ navigation }) => {
 
     setLoading(true);
     setError(''); // Clear previous errors
+
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);

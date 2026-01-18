@@ -1,17 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, getDoc, query, where, collection, getDocs } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBNcTckaLPZpAL3q5T_1KlJCDji_yjMs1A",
-  authDomain: "flatbuddy-mk1.firebaseapp.com",
-  projectId: "flatbuddy-mk1",
-  storageBucket: "flatbuddy-mk1.appspot.com",
-  messagingSenderId: "369948891874",
-  appId: "1:369948891874:web:5dbe9d9c3616da160b9cbb",
-  measurementId: "G-MTV0H8F1Y1"
-};
+import { auth, firestore } from '../config/firebase'; // Import instead of reinitializing
 
 const useFetchUser = () => {
   const [user, setUser] = useState(null);
@@ -28,8 +18,6 @@ const useFetchUser = () => {
 
   // --- Fetch User Document ---
   const fetchUserData = async (currentUser) => {
-    const firestore = getFirestore();
-
     try {
       const userDocRef = doc(firestore, 'users', currentUser.uid);
       const userDoc = await getDoc(userDocRef);
@@ -56,7 +44,6 @@ const useFetchUser = () => {
             setFlatName(flatData.flatName || "");
             setFlatMemb(flatData.userEmails || []);
 
-
             // Fetch usernames + images for all occupants
             fetchUsernamesAndImgLinks(flatData.userEmails || []);
           } else {
@@ -79,8 +66,6 @@ const useFetchUser = () => {
 
   // --- Fetch Usernames + Image Links for Occupants ---
   const fetchUsernamesAndImgLinks = async (userEmails) => {
-    const firestore = getFirestore();
-
     const userData = await Promise.all(
       userEmails.map(async (email) => {
         try {
@@ -94,23 +79,15 @@ const useFetchUser = () => {
           if (!usersSnapshot.empty) {
             const data = usersSnapshot.docs[0].data();
 
-  
-            
-
             return {
               username:
                 (data.username && data.username.trim() !== "")
                   ? data.username
-                  
-                  : email.split("@")[0], // <-- FIX: fallback to name, NOT email
-
-
-              
+                  : email.split("@")[0],
               imgLink: data.imgLink || ""
             };
           }
 
-          // No user doc found → fallback
           return {
             username: email.split("@")[0],
             imgLink: ""
@@ -153,7 +130,6 @@ const useFetchUser = () => {
 
   // --- Refetch Helper ---
   const refetch = useCallback(() => {
-    const auth = getAuth();
     const currentUser = auth.currentUser;
     if (currentUser) {
       setLoading(true);
@@ -163,9 +139,6 @@ const useFetchUser = () => {
 
   // --- Auth Listener ---
   useEffect(() => {
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
