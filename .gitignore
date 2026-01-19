@@ -111,7 +111,6 @@ yarn-error.*
 # @end expo-cli
 
 
-google-services.json
 *-firebase-adminsdk-*.json
 .env
 .env.local

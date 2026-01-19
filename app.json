@@ -6,7 +6,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-notifications"
+      "expo-notifications",
+      "@react-native-firebase/app",
+      [
+        "@react-native-firebase/messaging",
+        {
+          "skipNativeSetup": true
+        }
+      ]
     ],
     "name": "flatbuddy_mk1",
     "slug": "flatbuddy_mk1",
@@ -19,7 +26,8 @@
       }
     },
     "android": {
-      "package": "com.hrsugarnan.flatbuddy_mk1"
+      "package": "com.hrsugarnan.flatbuddy_mk1",
+      "googleServicesFile": "./google-services.json"
     },
     "ios": {
       "bundleIdentifier": "com.sugartech.flatbuddy"

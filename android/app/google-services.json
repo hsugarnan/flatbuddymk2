@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "369948891874",
+    "project_id": "flatbuddy-mk1",
+    "storage_bucket": "flatbuddy-mk1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:369948891874:android:14de41ce1a8bf3040b9cbb",
+        "android_client_info": {
+          "package_name": "com.hrsugarnan.flatbuddy_mk1"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "369948891874-3nsp480tqf6g1k7mk3ahbtjakt8vi8h1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2rhVaSJPr82vrM1VRNJwoo3G3JfnEuu0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "369948891874-3nsp480tqf6g1k7mk3ahbtjakt8vi8h1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:369948891874:android:7ed9931a4fd21edb0b9cbb",
+        "android_client_info": {
+          "package_name": "com.sugartech.flatbuddy"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "369948891874-3nsp480tqf6g1k7mk3ahbtjakt8vi8h1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2rhVaSJPr82vrM1VRNJwoo3G3JfnEuu0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "369948891874-3nsp480tqf6g1k7mk3ahbtjakt8vi8h1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

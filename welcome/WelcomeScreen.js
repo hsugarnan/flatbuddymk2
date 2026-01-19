@@ -26,7 +26,9 @@ const WelcomeScreen = ({ navigation }) => {
     try {
       console.log('📱 Requesting notification permissions...');
       
-      // Request permissions with proper error handling
+      // Add a small delay to ensure Firebase is initialized
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       const permissionResult = await Notifications.requestPermissionsAsync();
       
       if (!permissionResult || !permissionResult.granted) {
@@ -38,7 +40,7 @@ const WelcomeScreen = ({ navigation }) => {
 
       // Get the Expo push token
       const expoPushToken = await Notifications.getExpoPushTokenAsync({
-        projectId: 'a0e3eaf8-1866-44b1-a7c1-6e12f2daaae5', // Replace with your actual Expo project ID
+        projectId: 'a0e3eaf8-1866-44b1-a7c1-6e12f2daaae5',
       });
 
       console.log('✅ Expo Push Token:', expoPushToken.data);
@@ -50,22 +52,22 @@ const WelcomeScreen = ({ navigation }) => {
         pushUpdatedAt: serverTimestamp(),
       });
 
-      console.log('✅ Push token saved to Firestore');
+      console.log(' Push token saved to Firestore');
     } catch (error) {
-      console.error('❌ Error updating push token:', error);
-      console.error('Error details:', error.message);
+      console.error(' Error updating push token:', error);
     }
   };
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       try {
         if (currentUser) {
-          console.log("✅ User logged in:", currentUser.uid);
-          await updatePushTokenForUser(currentUser);
+          console.log(" User logged in:", currentUser.uid);
           navigation.replace('Main');
+          await updatePushTokenForUser(currentUser);
         } else {
-          console.log("❌ No user logged in");
+          console.log("No user logged in");
           setLoading(false);
         }
       } catch (error) {
