@@ -24,6 +24,7 @@ export interface EventBlockProps {
     styles: {
         [key: string]: ViewStyle | TextStyle;
     };
+    testID?: string;
 }
 declare const EventBlock: (props: EventBlockProps) => React.JSX.Element;
 export default EventBlock;

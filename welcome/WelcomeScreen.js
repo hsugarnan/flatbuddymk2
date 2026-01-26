@@ -45,12 +45,24 @@ const WelcomeScreen = ({ navigation }) => {
 
       console.log('✅ Expo Push Token:', expoPushToken.data);
 
+
+
       // Update Firestore with the token
       await updateDoc(doc(firestore, 'users', currentUser.uid), {
         expoPushToken: expoPushToken.data,
         pushPlatform: Platform.OS,
         pushUpdatedAt: serverTimestamp(),
       });
+
+      if(Platform.OS === 'android'){
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        });
+      }
+
 
       console.log(' Push token saved to Firestore');
     } catch (error) {
@@ -79,22 +91,6 @@ const WelcomeScreen = ({ navigation }) => {
     return () => unsubscribe();
   }, [auth, navigation]);
 
-  // Set up notification listeners
-  useEffect(() => {
-    const notificationListener = Notifications.addNotificationReceivedListener(notification => {
-      console.log('📬 Notification received:', notification);
-    });
-
-    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('👆 Notification tapped:', response);
-      // Handle notification tap - navigate to relevant screen
-    });
-
-    return () => {
-      Notifications.removeNotificationSubscription(notificationListener);
-      Notifications.removeNotificationSubscription(responseListener);
-    };
-  }, []);
 
   if (loading) {
     return (

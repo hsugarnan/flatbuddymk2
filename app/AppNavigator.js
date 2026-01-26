@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, NavigationIndependentTree } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import WelcomeScreen from '../welcome/WelcomeScreen';
 import LoginScreen from '../welcome/LogInScreen';
@@ -14,8 +14,9 @@ const Stack = createStackNavigator();
 
 const AppNavigator = () => {
   return (
-    <NavigationContainer independent={true}>
-      <Stack.Navigator initialRouteName="Welcome">
+    <NavigationIndependentTree>
+      <NavigationContainer>
+        <Stack.Navigator initialRouteName="Welcome">
         <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }}  />
         <Stack.Screen name="Login" component={LoginScreen}  options={{ headerShown: false }} />
         <Stack.Screen name="SignUp" component={SignUpScreen}  options={{ headerShown: false }} />
@@ -25,6 +26,7 @@ const AppNavigator = () => {
         <Stack.Screen name="JoinFlat" component={JoinFlat} options={{ headerShown: false }} /> 
       </Stack.Navigator>
     </NavigationContainer>
+    </NavigationIndependentTree>
   );
 };
 

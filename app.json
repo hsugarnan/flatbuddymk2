@@ -1,19 +1,13 @@
 {
   "expo": {
+    "jsEngine": "jsc",
     "scheme": "acme",
     "web": {
       "bundler": "metro"
     },
     "plugins": [
       "expo-router",
-      "expo-notifications",
-      "@react-native-firebase/app",
-      [
-        "@react-native-firebase/messaging",
-        {
-          "skipNativeSetup": true
-        }
-      ]
+      "expo-notifications"
     ],
     "name": "flatbuddy_mk1",
     "slug": "flatbuddy_mk1",
@@ -30,7 +24,9 @@
       "googleServicesFile": "./google-services.json"
     },
     "ios": {
-      "bundleIdentifier": "com.sugartech.flatbuddy"
+      "bundleIdentifier": "com.sugartech.flatbuddy",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "appleTeamId": "6FUS5226H8"
     }
   }
 }

@@ -3,7 +3,6 @@ import { getFirestore } from 'firebase/firestore';
 import { initializeAuth, getAuth, setPersistence, indexedDBLocalPersistence, getReactNativePersistence } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import { getMessaging } from 'firebase/messaging';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBNcTckaLPZpAL3q5T_1KlJCDji_yjMs1A",
@@ -15,27 +14,30 @@ const firebaseConfig = {
   measurementId: "G-MTV0H8F1Y1"
 };
 
-let app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+let app;
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApps()[0];
+}
 
 let auth;
 if (Platform.OS === 'android' || Platform.OS === 'ios') {
+  // Use initializeAuth with AsyncStorage persistence for React Native
+  try {
     auth = initializeAuth(app, {
       persistence: getReactNativePersistence(AsyncStorage)
     });
-} else {
+  } catch (e) {
+    // Auth already initialized, get existing instance
     auth = getAuth(app);
-    setPersistence(auth, indexedDBLocalPersistence);
+  }
+} else {
+  // Web platform
+  auth = getAuth(app);
+  setPersistence(auth, indexedDBLocalPersistence);
 }
 
 const firestore = getFirestore(app);
-
-// Initialize messaging for native platforms
-if (Platform.OS === 'android' || Platform.OS === 'ios') {
-  try {
-    getMessaging(app);
-  } catch (error) {
-    console.warn('Messaging not available:', error);
-  }
-}
 
 export { app, auth, firestore };
