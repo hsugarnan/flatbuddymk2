@@ -13,6 +13,8 @@ const useFetchUser = () => {
   const [flatMemb, setFlatMemb] = useState([]);
   const [flatMembUsernames, setFlatMembUsernames] = useState([]);
   const [flatMembImgLinks, setFlatMembImgLinks] = useState([]);
+  const [flatMembVacated, setFlatMembVacated] = useState([]); // Track vacated status
+  const [isVacated, setIsVacated] = useState(false); // Current user's vacated status
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -28,6 +30,7 @@ const useFetchUser = () => {
         setUsername(userData.username || currentUser.email.split("@")[0]);
         setEmail(userData.email || currentUser.email);
         setFlatNum(userData.flatNum || "");
+        setIsVacated(userData.vacated || false); // Set current user's vacated status
 
         // If user belongs to a flat → fetch occupants
         if (userData.flatNum) {
@@ -84,20 +87,23 @@ const useFetchUser = () => {
                 (data.username && data.username.trim() !== "")
                   ? data.username
                   : email.split("@")[0],
-              imgLink: data.imgLink || ""
+              imgLink: data.imgLink || "",
+              vacated: data.vacated || false // Include vacated status
             };
           }
 
           return {
             username: email.split("@")[0],
-            imgLink: ""
+            imgLink: "",
+            vacated: false
           };
 
         } catch (err) {
           console.error("Error fetching occupant:", err);
           return {
             username: email.split("@")[0],
-            imgLink: ""
+            imgLink: "",
+            vacated: false
           };
         }
       })
@@ -105,6 +111,7 @@ const useFetchUser = () => {
 
     setFlatMembUsernames(userData.map(u => u.username));
     setFlatMembImgLinks(userData.map(u => u.imgLink));
+    setFlatMembVacated(userData.map(u => u.vacated));
   };
 
   const fetchUserExpenses = async () => {
@@ -162,6 +169,8 @@ const useFetchUser = () => {
     flatMembUsernames,
     userExpenses,
     flatMembImgLinks,
+    flatMembVacated, // Vacated status for all members
+    isVacated, // Current user's vacated status
     loading,
     error,
     refetch,

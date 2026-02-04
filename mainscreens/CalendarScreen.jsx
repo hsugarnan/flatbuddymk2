@@ -29,11 +29,18 @@ const CalendarScreen = ({ route, navigation }) => {
   const [selectedDate, setSelectedDate] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [activeChores, setActiveChores] = useState([]);
-  const { username, flatNum, email, flatMembUsernames, flatName, loading, error, refetch, imgLink, flatMemb } = useFetchUser();
+  const [startingUser, setStartingUser] = useState('random'); // 'random' or a username
+  const [showStarterPicker, setShowStarterPicker] = useState(false);
+  const { username, flatNum, email, flatMembUsernames, flatMembVacated, isVacated, flatName, loading, error, refetch, imgLink, flatMemb } = useFetchUser();
 
   const app = initializeApp(firebaseConfig);
   const firestore = getFirestore(app);
   const auth = getAuth();
+
+  // Get active (non-vacated) flatmates
+  const getActiveFlatmates = () => {
+    return flatMembUsernames.filter((_, index) => !flatMembVacated[index]);
+  };
 
   useEffect(() => {
     if (auth.currentUser && flatNum) {
@@ -132,15 +139,32 @@ const CalendarScreen = ({ route, navigation }) => {
 
   const assignChores = async (chore) => {
     const today = new Date();
-    const numFlatmates = flatMembUsernames.length;
+    const activeFlatmates = getActiveFlatmates(); // Only non-vacated users
+    const numFlatmates = activeFlatmates.length;
     const end = new Date(chore.endDate);
+
+    if (numFlatmates === 0) {
+      alert('No active flatmates available to assign chores. All members have vacated.');
+      return;
+    }
   
     if (chore.frequency < 1 || chore.frequency > 7) {
       alert('Frequency should be between 1 and 7');
       return;
     }
   
-    let shuffledUsers = shuffleArray(flatMembUsernames); // Shuffle the array
+    // Determine user order based on selection (only from active flatmates)
+    let orderedUsers;
+    if (startingUser === 'random' || !activeFlatmates.includes(startingUser)) {
+      orderedUsers = shuffleArray(activeFlatmates); // Shuffle only active users
+    } else {
+      // Start with selected user, then rotate through others
+      const startIndex = activeFlatmates.indexOf(startingUser);
+      orderedUsers = [
+        ...activeFlatmates.slice(startIndex),
+        ...activeFlatmates.slice(0, startIndex)
+      ];
+    }
     let j = 0;
   
     let choreDate = new Date(today);
@@ -152,7 +176,7 @@ const CalendarScreen = ({ route, navigation }) => {
         choreName: chore.choreName,
         date: dateString,
         flatID: chore.flatID,
-        userEmail: shuffledUsers[j], // Use shuffled users
+        userEmail: orderedUsers[j], // Use ordered users based on selection
       };
   
       await addDoc(collection(firestore, 'chores'), newChore);
@@ -215,13 +239,27 @@ const CalendarScreen = ({ route, navigation }) => {
   };
 
   const renderChores = () => {
+    // If user is vacated, don't show any chores
+    if (isVacated) {
+      return (
+        <View style={styles.vacatedMessage}>
+          <Text style={styles.vacatedMessageText}> You're currently away</Text>
+          <Text style={styles.vacatedMessageSubtext}>Your chores are paused while you're vacated. Return to the flat to resume your chore rotation.</Text>
+        </View>
+      );
+    }
+
     const userChores = Object.values(chores)
       .flat() // Flatten the array to get all chores in a single array
       .filter(chore => chore.userEmail === username) // Filter chores for the current user
       .sort((a, b) => new Date(a.date) - new Date(b.date)) // Sort chores by date
 
     // Get the next 4 chores
-    const nextFourChores = userChores.slice(0, 4);
+    const nextFourChores = userChores.slice(0, 2);
+
+    if (nextFourChores.length === 0) {
+      return <Text style={styles.noChoresText}>No upcoming chores assigned to you.</Text>;
+    }
 
     return nextFourChores.map(chore => renderChore(chore));
   };
@@ -319,6 +357,57 @@ const CalendarScreen = ({ route, navigation }) => {
                 }}
               />
             )}
+
+            <Text style={styles.dateTitle}>Who Starts First?</Text>
+            <TouchableOpacity
+              style={styles.input}
+              onPress={() => setShowStarterPicker(!showStarterPicker)}
+            >
+              <Text style={{ color: '#333' }}>
+                {startingUser === 'random' ? ' Random Order' : `👤 ${startingUser}`}
+              </Text>
+            </TouchableOpacity>
+            {showStarterPicker && (
+              <View style={styles.starterPickerContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.starterOption,
+                    startingUser === 'random' && styles.starterOptionSelected
+                  ]}
+                  onPress={() => {
+                    setStartingUser('random');
+                    setShowStarterPicker(false);
+                  }}
+                >
+                  <Text style={styles.starterOptionText}> Random Order</Text>
+                </TouchableOpacity>
+                {flatMembUsernames.map((user, index) => {
+                  const isVacated = flatMembVacated[index];
+                  return (
+                    <TouchableOpacity
+                      key={user}
+                      style={[
+                        styles.starterOption,
+                        startingUser === user && styles.starterOptionSelected,
+                        isVacated && styles.starterOptionDisabled
+                      ]}
+                      onPress={() => {
+                        if (!isVacated) {
+                          setStartingUser(user);
+                          setShowStarterPicker(false);
+                        }
+                      }}
+                      disabled={isVacated}
+                    >
+                      <Text style={[styles.starterOptionText, isVacated && styles.starterOptionTextDisabled]}>
+                        {isVacated ? '✈️' : '👤'} {user} {isVacated ? '(Away)' : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
             <TouchableOpacity style={styles.addButton} onPress={handleAddChore}>
               {loadingAdd ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -483,6 +572,59 @@ const styles = StyleSheet.create({
   closeButtonText: {
     color: 'white',
     fontSize: 16,
+  },
+  starterPickerContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  starterOption: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  starterOptionSelected: {
+    backgroundColor: '#e3f2fd',
+  },
+  starterOptionDisabled: {
+    backgroundColor: '#f5f5f5',
+    opacity: 0.6,
+  },
+  starterOptionText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  starterOptionTextDisabled: {
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  vacatedMessage: {
+    backgroundColor: '#fff3e0',
+    padding: 15,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff9800',
+    marginVertical: 10,
+  },
+  vacatedMessageText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#e65100',
+    marginBottom: 5,
+  },
+  vacatedMessageSubtext: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  noChoresText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+    paddingVertical: 10,
   },
 });
 

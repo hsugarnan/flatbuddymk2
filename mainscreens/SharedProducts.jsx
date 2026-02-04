@@ -30,10 +30,15 @@ const SharedProducts = () => {
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenses, setExpenses] = useState([]);
 
-  const { flatNum, flatMembUsernames, username } = useFetchUser();
+  const { flatNum, flatMembUsernames, flatMembVacated, username } = useFetchUser();
 
   const app = initializeApp(firebaseConfig);
   const firestore = getFirestore(app);
+
+  // Get active (non-vacated) flatmates
+  const getActiveFlatmates = () => {
+    return flatMembUsernames.filter((_, index) => !flatMembVacated || !flatMembVacated[index]);
+  };
 
   useEffect(() => {
     fetchSharedProducts();
@@ -82,7 +87,12 @@ const SharedProducts = () => {
     }
 
     try {
-      const shuffled = shuffleArray([...flatMembUsernames]);
+      const activeFlatmates = getActiveFlatmates();
+      if (activeFlatmates.length === 0) {
+        alert('No active flatmates available to assign products. All members have vacated.');
+        return;
+      }
+      const shuffled = shuffleArray([...activeFlatmates]);
       const nextUser = shuffled[0];
 
       const newProduct = {
@@ -112,8 +122,14 @@ const SharedProducts = () => {
   };
 
   const getNextUser = (currentUser) => {
-    const i = flatMembUsernames.indexOf(currentUser);
-    return flatMembUsernames[(i + 1) % flatMembUsernames.length];
+    // Only rotate through active (non-vacated) users
+    const activeFlatmates = getActiveFlatmates();
+    if (activeFlatmates.length === 0) return currentUser;
+    
+    const i = activeFlatmates.indexOf(currentUser);
+    // If current user is vacated or not in active list, start from beginning
+    if (i === -1) return activeFlatmates[0];
+    return activeFlatmates[(i + 1) % activeFlatmates.length];
   };
 
   const handleUseProduct = async (product) => {

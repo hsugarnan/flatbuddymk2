@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView, Image,
-  ScrollView, RefreshControl, Alert, Modal, TextInput, Platform
+  ScrollView, RefreshControl, Alert, Modal, TextInput, Platform, KeyboardAvoidingView
 } from 'react-native';
 import Spacing from '../constants/Spacing';
 import FontSize from '../constants/FontSize';
@@ -16,12 +16,51 @@ import * as Notifications from 'expo-notifications'; //for handling notification
 import Constants from 'expo-constants';              //for accessing app constants (e.g., project ID)
 import { useFocusEffect } from '@react-navigation/native';
 import {
-  collection, getDocs, query, where, doc, setDoc, updateDoc, arrayRemove, deleteDoc, addDoc
+  collection, query, where, getDocs, addDoc, onSnapshot, orderBy, serverTimestamp, deleteDoc, doc, updateDoc, setDoc 
 } from 'firebase/firestore';
 import { signOut, deleteUser } from 'firebase/auth';
 import { Picker } from '@react-native-picker/picker'; //import Picker component
 
+
+
 const ProfileScreen = ({ route, navigation }) => {
+    // --- FlatBoard State ---
+    const [flatBoardPosts, setFlatBoardPosts] = useState([]);
+    const [newPostContent, setNewPostContent] = useState('');
+    const [addingPost, setAddingPost] = useState(false);
+    // --- Fetch FlatBoard Posts ---
+   
+    // --- Add New FlatBoard Post ---
+    const handleAddFlatBoardPost = async () => {
+      if (!newPostContent.trim() || !flatNum || !user) return;
+      setAddingPost(true);
+      try {
+        const postsRef = collection(firestore, 'flatboards', flatNum, 'posts');
+        await addDoc(postsRef, {
+          content: newPostContent.trim(),
+          createdBy: user.uid,
+          createdByName: username,
+          createdAt: serverTimestamp(),
+          type: 'note',
+        });
+        setNewPostContent('');
+      } catch (error) {
+        console.error('Error adding flatboard post:', error);
+        Alert.alert('Error', 'Could not add post.');
+      }
+      setAddingPost(false);
+    };
+
+    // --- Delete FlatBoard Post ---
+    const handleDeleteFlatBoardPost = async (postId) => {
+      try {
+        const postRef = doc(firestore, 'flatboards', flatNum, 'posts', postId);
+        await deleteDoc(postRef);
+      } catch (error) {
+        console.error('Error deleting flatboard post:', error);
+        Alert.alert('Error', 'Could not delete post.');
+      }
+    };
   const [overdueChores, setOverdueChores] = useState([]);
   const [sharedProducts, setSharedProducts] = useState([]);
   const [mess, setMess] = useState([]);
@@ -34,7 +73,7 @@ const ProfileScreen = ({ route, navigation }) => {
   const [userExpenses, setUserExpenses] = useState([]);
   const [messDescription, setMessDescription] = useState('');
   const [messResponsible, setMessResponsible] = useState('');
-  const { user, username, flatNum, email, flatMembUsernames, flatMembImgLinks, flatName, loading, error, refetch, imgLink, flatMemb } = useFetchUser();
+  const { user, username, flatNum, email, flatMembUsernames, flatMembImgLinks, flatMembVacated, isVacated, flatName, loading, error, refetch, imgLink, flatMemb } = useFetchUser();
 
   useFocusEffect(
     useCallback(() => {
@@ -335,6 +374,127 @@ const ProfileScreen = ({ route, navigation }) => {
     }
   };
 
+  // --- Reassign Chores Function (when user vacates) ---
+  const reassignVacatedUserChores = async (vacatedUsername) => {
+    if (!flatNum) return;
+
+    // Get active flatmates (excluding the vacating user)
+    const activeFlatmates = flatMembUsernames.filter((u, index) => 
+      u !== vacatedUsername && !flatMembVacated[index]
+    );
+
+    if (activeFlatmates.length === 0) {
+      console.log('No active flatmates to reassign chores to');
+      return;
+    }
+
+    // Get all future chores assigned to the vacating user
+    const today = new Date().toISOString().split('T')[0];
+    const choresQuery = query(
+      collection(firestore, 'chores'),
+      where('flatID', '==', flatNum),
+      where('userEmail', '==', vacatedUsername)
+    );
+    
+    const querySnapshot = await getDocs(choresQuery);
+    const futureChoresToReassign = [];
+
+    querySnapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      // Only reassign future chores (not past or today)
+      if (data.date >= today) {
+        futureChoresToReassign.push({ id: docSnap.id, ...data });
+      }
+    });
+
+    if (futureChoresToReassign.length === 0) {
+      console.log('No future chores to reassign');
+      return;
+    }
+
+    // Sort by date to maintain order
+    futureChoresToReassign.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Reassign chores round-robin to active flatmates
+    let assignmentIndex = 0;
+    for (const chore of futureChoresToReassign) {
+      const newAssignee = activeFlatmates[assignmentIndex % activeFlatmates.length];
+      const choreRef = doc(firestore, 'chores', chore.id);
+      await updateDoc(choreRef, { userEmail: newAssignee });
+      assignmentIndex++;
+    }
+
+    console.log(`Reassigned ${futureChoresToReassign.length} chores to active flatmates`);
+  };
+
+  // --- Vacate Flat Function ---
+  const handleVacateFlat = () => {
+    Alert.alert(
+      'Vacate Flat',
+      'Are you sure you want to vacate the flat? Your upcoming chores will be reassigned to other flatmates until you return.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, Vacate',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // First reassign chores to other flatmates
+              await reassignVacatedUserChores(username);
+              
+              // Then mark user as vacated
+              const userRef = doc(firestore, 'users', auth.currentUser.uid);
+              await updateDoc(userRef, { vacated: true });
+              refetch();
+              Alert.alert('Success', 'You have vacated the flat. Your chores have been reassigned to other flatmates.');
+            } catch (error) {
+              console.error('Error vacating flat:', error);
+              Alert.alert('Error', 'Failed to vacate flat.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // --- Return to Flat Function ---
+  const handleReturnToFlat = () => {
+    Alert.alert(
+      'Return to Flat',
+      'Welcome back! Are you ready to rejoin the chore and product rotations?',
+      [
+        { text: 'Not Yet', style: 'cancel' },
+        {
+          text: 'Yes, I\'m Back!',
+          onPress: async () => {
+            try {
+              const userRef = doc(firestore, 'users', auth.currentUser.uid);
+              await updateDoc(userRef, { vacated: false });
+              refetch();
+              Alert.alert('Welcome Back!', 'You have been added back to all rotations.');
+            } catch (error) {
+              console.error('Error returning to flat:', error);
+              Alert.alert('Error', 'Failed to return to flat.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+   useEffect(() => {
+      if (!flatNum) return;
+      const postsRef = collection(firestore, 'flatboards', flatNum, 'posts');
+      const q = query(postsRef, orderBy('createdAt', 'desc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('FlatBoard Posts:', posts);
+        setFlatBoardPosts(posts);
+      });
+      return () => unsubscribe();
+    }, [flatNum]);
+
+
   const handleDeleteAccount = async () => {
     const user = auth.currentUser;
 
@@ -519,6 +679,11 @@ const ProfileScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
       <View style={styles.header}>
         <View style={styles.headerTextContainer}>
           <Text style={styles.headerText}>Name: {username}</Text>
@@ -538,7 +703,9 @@ const ProfileScreen = ({ route, navigation }) => {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        keyboardShouldPersistTaps="handled"
       >
+        {/* --- Occupants Section --- */}
         <View style={styles.headerWithButton}>
           <Text style={styles.title}>Occupants</Text>
           <TouchableOpacity onPress={handleReportMess} style={styles.reportButton}>
@@ -547,25 +714,93 @@ const ProfileScreen = ({ route, navigation }) => {
         </View>
         {flatMembUsernames.map((item, index) => (
           <View key={item}>
-        <TouchableOpacity key={item} onPress={() => handleUserPress(item)}>
-          <View style={styles.occupantRow}>
-            <View style={styles.leftColumn}>
-              <Image
-                source={{ uri: flatMembImgLinks[index] || 'https://cdn-icons-png.freepik.com/512/8637/8637477.png' }}
-                style={styles.profileImage}
-              />
-              <Text style={styles.arrayItem}>{item}</Text>
-            </View>
-            <View style={styles.rightColumn}>
-            {issueCheck(item)}
-            </View>
+            <TouchableOpacity key={item} onPress={() => handleUserPress(item)}>
+              <View style={styles.occupantRow}>
+                <View style={styles.leftColumn}>
+                  <Image
+                    source={{ uri: flatMembImgLinks[index] || 'https://cdn-icons-png.freepik.com/512/8637/8637477.png' }}
+                    style={[styles.profileImage, flatMembVacated[index] && styles.profileImageVacated]}
+                  />
+                  <View>
+                    <Text style={styles.arrayItem}>{item}</Text>
+                    {flatMembVacated[index] && (
+                      <View style={styles.vacatedBadge}>
+                        <Ionicons name="airplane" size={12} color="#fff" />
+                        <Text style={styles.vacatedBadgeText}>Away</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <View style={styles.rightColumn}>
+                  {issueCheck(item)}
+                </View>
+              </View>
+            </TouchableOpacity>
+            <View style={styles.separator} />
           </View>
-        </TouchableOpacity>
-        <View style={styles.separator} />
+        ))}
 
+        {/* --- Vacate/Return Button --- */}
+        <View style={styles.vacateContainer}>
+          {isVacated ? (
+            <TouchableOpacity style={styles.returnButton} onPress={handleReturnToFlat}>
+              <Ionicons name="home" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.returnButtonText}>Return to Flat</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.vacateButton} onPress={handleVacateFlat}>
+              <Ionicons name="airplane" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.vacateButtonText}>Vacate Flat</Text>
+            </TouchableOpacity>
+          )}
+          <Text style={styles.vacateHint}>
+            {isVacated 
+              ? "You're currently away. Tap to rejoin rotations." 
+              : "Going away? Tap to pause your chore & product rotations."}
+          </Text>
         </View>
-        
-      ))}
+
+        {/* --- FlatBoard Section (moved below Occupants) --- */}
+        <View style={styles.flatBoardContainer}>
+          <Text style={styles.flatBoardTitle}>FlatBoard</Text>
+          <View style={styles.flatBoardInputRow}>
+            <TextInput
+              style={styles.flatBoardInput}
+              placeholder="Add a note or shopping item..."
+              value={newPostContent}
+              onChangeText={setNewPostContent}
+              editable={!addingPost}
+              placeholderTextColor="#666"
+            />
+            <TouchableOpacity
+              style={styles.flatBoardAddButton}
+              onPress={handleAddFlatBoardPost}
+              disabled={addingPost || !newPostContent.trim()}
+            >
+              <Text style={styles.flatBoardAddButtonText}>{addingPost ? '...' : 'Post'}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.flatBoardPostsList}>
+            {flatBoardPosts.length === 0 ? (
+              <Text style={styles.flatBoardEmptyText}>No posts yet. Start the conversation!</Text>
+            ) : (
+              flatBoardPosts.map(post => (
+                <View key={post.id} style={styles.flatBoardPostItem}>
+                  <View style={styles.flatBoardPostHeader}>
+                    <Text style={styles.flatBoardPostAuthor}>{post.createdByName || 'User'}</Text>
+                    <Text style={styles.flatBoardPostTime}>{post.createdAt?.toDate ? post.createdAt.toDate().toLocaleString() : ''}</Text>
+                  </View>
+                  <Text style={styles.flatBoardPostContent}>{post.content}</Text>
+                  {user && post.createdBy === user.uid && (
+                    <TouchableOpacity onPress={() => handleDeleteFlatBoardPost(post.id)} style={styles.flatBoardDeleteButton}>
+                      <Text style={styles.flatBoardDeleteButtonText}>Delete</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))
+            )}
+          </View>
+        </View>
       </ScrollView>
 
       {/* Modal for user details */}
@@ -642,11 +877,111 @@ const ProfileScreen = ({ route, navigation }) => {
           </View>
         </View>
       </Modal>
+
+       
+      
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  flatBoardContainer: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    padding: Spacing * 2,
+    marginBottom: Spacing * 2,
+    marginTop: Spacing * 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  flatBoardTitle: {
+    fontSize: FontSize.xLarge,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginBottom: Spacing,
+  },
+  flatBoardInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing,
+  },
+  flatBoardInput: {
+    flex: 1,
+    borderColor: Colors.primary,
+    borderWidth: 1,
+    borderRadius: Spacing,
+    padding: Spacing,
+    marginRight: Spacing,
+    backgroundColor: '#fff',
+    color: Colors.text,
+  },
+  flatBoardAddButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing / 1.5,
+    paddingHorizontal: Spacing * 1.5,
+    borderRadius: Spacing,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flatBoardAddButtonText: {
+    color: Colors.onPrimary,
+    fontSize: FontSize.medium,
+    fontWeight: 'bold',
+  },
+  flatBoardPostsList: {
+    marginTop: Spacing,
+  },
+  flatBoardEmptyText: {
+    color: '#888',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginVertical: Spacing,
+  },
+  flatBoardPostItem: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: Spacing,
+    marginBottom: Spacing,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  flatBoardPostHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  flatBoardPostAuthor: {
+    fontWeight: 'bold',
+    color: Colors.primary,
+  },
+  flatBoardPostTime: {
+    color: '#888',
+    fontSize: FontSize.small,
+  },
+  flatBoardPostContent: {
+    fontSize: FontSize.medium,
+    color: Colors.text,
+    marginVertical: 2,
+  },
+  flatBoardDeleteButton: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    backgroundColor: '#dc3545',
+    borderRadius: 5,
+    paddingVertical: 2,
+    paddingHorizontal: 10,
+  },
+  flatBoardDeleteButtonText: {
+    color: '#fff',
+    fontSize: FontSize.small,
+  },
   container: {
     flex: 1,
     padding: Spacing * 2,
@@ -725,6 +1060,65 @@ const styles = StyleSheet.create({
     height: 80, // Increased size
     borderRadius: 40, // Ensure it remains circular
     marginRight: Spacing,
+  },
+  profileImageVacated: {
+    opacity: 0.5,
+    borderWidth: 2,
+    borderColor: '#F39C12',
+  },
+  vacatedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F39C12',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  vacatedBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  vacateContainer: {
+    backgroundColor: '#f8f9fa',
+    padding: Spacing * 1.5,
+    borderRadius: 10,
+    marginVertical: Spacing * 2,
+    alignItems: 'center',
+  },
+  vacateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F39C12',
+    paddingVertical: Spacing,
+    paddingHorizontal: Spacing * 2,
+    borderRadius: 10,
+  },
+  vacateButtonText: {
+    color: '#fff',
+    fontSize: FontSize.medium,
+    fontWeight: 'bold',
+  },
+  returnButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#27AE60',
+    paddingVertical: Spacing,
+    paddingHorizontal: Spacing * 2,
+    borderRadius: 10,
+  },
+  returnButtonText: {
+    color: '#fff',
+    fontSize: FontSize.medium,
+    fontWeight: 'bold',
+  },
+  vacateHint: {
+    marginTop: Spacing,
+    color: '#666',
+    fontSize: FontSize.small,
+    textAlign: 'center',
   },
   arrayItem: {
     fontSize: FontSize.large,
