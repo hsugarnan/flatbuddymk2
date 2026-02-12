@@ -21,6 +21,7 @@ const firebaseConfig = {
 const SharedProducts = () => {
   const [activeTab, setActiveTab] = useState('products'); 
   const [productName, setProductName] = useState('');
+  const [selectedStartUser, setSelectedStartUser] = useState('');
   const [sharedProducts, setSharedProducts] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -29,6 +30,9 @@ const SharedProducts = () => {
   const [expenseUser, setExpenseUser] = useState('');
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenses, setExpenses] = useState([]);
+  const [splitMode, setSplitMode] = useState('full'); // 'full', 'equal', 'custom'
+  const [selectedSplitUsers, setSelectedSplitUsers] = useState([]);
+  const [paidBy, setPaidBy] = useState('');
 
   const { flatNum, flatMembUsernames, flatMembVacated, username } = useFetchUser();
 
@@ -86,19 +90,22 @@ const SharedProducts = () => {
       return;
     }
 
+    if (!selectedStartUser) {
+      alert('Please select who should start');
+      return;
+    }
+
     try {
       const activeFlatmates = getActiveFlatmates();
       if (activeFlatmates.length === 0) {
         alert('No active flatmates available to assign products. All members have vacated.');
         return;
       }
-      const shuffled = shuffleArray([...activeFlatmates]);
-      const nextUser = shuffled[0];
 
       const newProduct = {
         name: productName,
         flatID: flatNum,
-        purchasedBy: nextUser,
+        purchasedBy: selectedStartUser,
         status: 'available',
       };
 
@@ -115,6 +122,7 @@ const SharedProducts = () => {
       }
 
       setProductName('');
+      setSelectedStartUser('');
       fetchSharedProducts();
     } catch (error) {
       alert(error.message);
@@ -200,24 +208,93 @@ const SharedProducts = () => {
   };
 
   const addExpense = async () => {
-    if (!expenseAmount || !expenseDesc || !expenseUser) {
-      alert("Enter all fields");
+    if (!expenseAmount || !expenseDesc) {
+      alert("Enter description and amount");
       return;
     }
 
-    await addDoc(collection(firestore, 'expenses'), {
-      amount: parseFloat(expenseAmount),
-      description: expenseDesc,
-      addedBy: username,
-      expenseUser,
-      flatID: flatNum,
-      settled: false,
-      createdAt: new Date(),
-    });
+    const amount = parseFloat(expenseAmount);
+
+    if (splitMode === 'full') {
+      // Full amount to one person
+      if (!expenseUser) {
+        alert("Select who owes this expense");
+        return;
+      }
+      await addDoc(collection(firestore, 'expenses'), {
+        amount,
+        description: expenseDesc,
+        addedBy: username,
+        expenseUser,
+        flatID: flatNum,
+        settled: false,
+        splitMode: 'full',
+        createdAt: new Date(),
+      });
+    } else if (splitMode === 'equal') {
+      // Split equally among all active flatmates
+      const activeFlatmates = getActiveFlatmates();
+      if (!paidBy) {
+        alert("Select who paid");
+        return;
+      }
+      const splitAmount = (amount / activeFlatmates.length).toFixed(2);
+      
+      // Create expense entries for everyone except the payer
+      for (const member of activeFlatmates) {
+        if (member !== paidBy) {
+          await addDoc(collection(firestore, 'expenses'), {
+            amount: parseFloat(splitAmount),
+            description: `${expenseDesc} (split)`,
+            addedBy: username,
+            paidBy,
+            expenseUser: member,
+            flatID: flatNum,
+            settled: false,
+            splitMode: 'equal',
+            originalAmount: amount,
+            splitBetween: activeFlatmates.length,
+            createdAt: new Date(),
+          });
+        }
+      }
+    } else if (splitMode === 'custom') {
+      // Split among selected users only
+      if (selectedSplitUsers.length < 2) {
+        alert("Select at least 2 people to split between");
+        return;
+      }
+      if (!paidBy) {
+        alert("Select who paid");
+        return;
+      }
+      const splitAmount = (amount / selectedSplitUsers.length).toFixed(2);
+      
+      // Create expense entries for selected users except the payer
+      for (const member of selectedSplitUsers) {
+        if (member !== paidBy) {
+          await addDoc(collection(firestore, 'expenses'), {
+            amount: parseFloat(splitAmount),
+            description: `${expenseDesc} (split)`,
+            addedBy: username,
+            paidBy,
+            expenseUser: member,
+            flatID: flatNum,
+            settled: false,
+            splitMode: 'custom',
+            originalAmount: amount,
+            splitBetween: selectedSplitUsers.length,
+            createdAt: new Date(),
+          });
+        }
+      }
+    }
 
     setExpenseAmount('');
     setExpenseDesc('');
     setExpenseUser('');
+    setPaidBy('');
+    setSelectedSplitUsers([]);
     fetchExpenses();
   };
 
@@ -307,6 +384,29 @@ const SharedProducts = () => {
             onChangeText={setProductName}
           />
 
+          <Text style={styles.subHeading}>Who should start?</Text>
+          <View style={styles.userGrid}>
+            {getActiveFlatmates().map(member => (
+              <TouchableOpacity
+                key={member}
+                style={[
+                  styles.userPill,
+                  selectedStartUser === member && styles.userPillSelected
+                ]}
+                onPress={() => setSelectedStartUser(member)}
+              >
+                <Text
+                  style={[
+                    styles.userPillText,
+                    selectedStartUser === member && styles.userPillTextSelected
+                  ]}
+                >
+                  {member}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
             <Text style={styles.addButtonText}>Add Product</Text>
           </TouchableOpacity>
@@ -346,29 +446,162 @@ const SharedProducts = () => {
               style={styles.input}
             />
 
-            <Text style={styles.subHeading}>Assign to:</Text>
+            {/* SPLIT MODE SELECTOR */}
+            <Text style={styles.subHeading}>How to split?</Text>
+            <View style={styles.splitModeContainer}>
+              <TouchableOpacity
+                style={[styles.splitModeButton, splitMode === 'full' && styles.splitModeActive]}
+                onPress={() => setSplitMode('full')}
+              >
+                <Ionicons name="person" size={18} color={splitMode === 'full' ? '#fff' : Colors.primary} />
+                <Text style={[styles.splitModeText, splitMode === 'full' && styles.splitModeTextActive]}>
+                  Full Amount
+                </Text>
+              </TouchableOpacity>
 
-            <View style={styles.userGrid}>
-              {flatMembUsernames.map(member => (
-                <TouchableOpacity
-                  key={member}
-                  style={[
-                    styles.userPill,
-                    expenseUser === member && styles.userPillSelected
-                  ]}
-                  onPress={() => setExpenseUser(member)}
-                >
-                  <Text
-                    style={[
-                      styles.userPillText,
-                      expenseUser === member && styles.userPillTextSelected
-                    ]}
-                  >
-                    {member}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              <TouchableOpacity
+                style={[styles.splitModeButton, splitMode === 'equal' && styles.splitModeActive]}
+                onPress={() => setSplitMode('equal')}
+              >
+                <Ionicons name="people" size={18} color={splitMode === 'equal' ? '#fff' : Colors.primary} />
+                <Text style={[styles.splitModeText, splitMode === 'equal' && styles.splitModeTextActive]}>
+                  Split Equally
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.splitModeButton, splitMode === 'custom' && styles.splitModeActive]}
+                onPress={() => setSplitMode('custom')}
+              >
+                <Ionicons name="options" size={18} color={splitMode === 'custom' ? '#fff' : Colors.primary} />
+                <Text style={[styles.splitModeText, splitMode === 'custom' && styles.splitModeTextActive]}>
+                  Custom Split
+                </Text>
+              </TouchableOpacity>
             </View>
+
+            {/* FULL AMOUNT MODE - Assign to one person */}
+            {splitMode === 'full' && (
+              <>
+                <Text style={styles.subHeading}>Who owes this?</Text>
+                <View style={styles.userGrid}>
+                  {flatMembUsernames.map(member => (
+                    <TouchableOpacity
+                      key={member}
+                      style={[
+                        styles.userPill,
+                        expenseUser === member && styles.userPillSelected
+                      ]}
+                      onPress={() => setExpenseUser(member)}
+                    >
+                      <Text
+                        style={[
+                          styles.userPillText,
+                          expenseUser === member && styles.userPillTextSelected
+                        ]}
+                      >
+                        {member}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {/* EQUAL SPLIT MODE - Who paid */}
+            {splitMode === 'equal' && (
+              <>
+                <Text style={styles.subHeading}>Who paid?</Text>
+                <View style={styles.userGrid}>
+                  {getActiveFlatmates().map(member => (
+                    <TouchableOpacity
+                      key={member}
+                      style={[
+                        styles.userPill,
+                        paidBy === member && styles.userPillSelected
+                      ]}
+                      onPress={() => setPaidBy(member)}
+                    >
+                      <Text
+                        style={[
+                          styles.userPillText,
+                          paidBy === member && styles.userPillTextSelected
+                        ]}
+                      >
+                        {member}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {expenseAmount && paidBy && (
+                  <Text style={styles.splitPreview}>
+                    Each person owes: £{(parseFloat(expenseAmount || 0) / getActiveFlatmates().length).toFixed(2)}
+                  </Text>
+                )}
+              </>
+            )}
+
+            {/* CUSTOM SPLIT MODE - Who paid + select who to split with */}
+            {splitMode === 'custom' && (
+              <>
+                <Text style={styles.subHeading}>Who paid?</Text>
+                <View style={styles.userGrid}>
+                  {getActiveFlatmates().map(member => (
+                    <TouchableOpacity
+                      key={member}
+                      style={[
+                        styles.userPill,
+                        paidBy === member && styles.userPillSelected
+                      ]}
+                      onPress={() => setPaidBy(member)}
+                    >
+                      <Text
+                        style={[
+                          styles.userPillText,
+                          paidBy === member && styles.userPillTextSelected
+                        ]}
+                      >
+                        {member}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={styles.subHeading}>Split between:</Text>
+                <View style={styles.userGrid}>
+                  {getActiveFlatmates().map(member => (
+                    <TouchableOpacity
+                      key={member}
+                      style={[
+                        styles.userPill,
+                        selectedSplitUsers.includes(member) && styles.userPillSelected
+                      ]}
+                      onPress={() => {
+                        if (selectedSplitUsers.includes(member)) {
+                          setSelectedSplitUsers(selectedSplitUsers.filter(u => u !== member));
+                        } else {
+                          setSelectedSplitUsers([...selectedSplitUsers, member]);
+                        }
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.userPillText,
+                          selectedSplitUsers.includes(member) && styles.userPillTextSelected
+                        ]}
+                      >
+                        {member} {selectedSplitUsers.includes(member) && '✓'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {expenseAmount && selectedSplitUsers.length >= 2 && (
+                  <Text style={styles.splitPreview}>
+                    Each person owes: £{(parseFloat(expenseAmount || 0) / selectedSplitUsers.length).toFixed(2)}
+                  </Text>
+                )}
+              </>
+            )}
 
             <TouchableOpacity style={styles.addExpenseButton} onPress={addExpense}>
               <Text style={styles.addExpenseButtonText}>Add Expense</Text>
@@ -391,12 +624,20 @@ const SharedProducts = () => {
                 </View>
 
                 <Text style={styles.expenseMeta}>
-                  Added by <Text style={styles.bold}>{item.addedBy}</Text>
+                  {item.paidBy ? (
+                    <>Paid by <Text style={styles.bold}>{item.paidBy}</Text></>
+                  ) : (
+                    <>Added by <Text style={styles.bold}>{item.addedBy}</Text></>
+                  )}
                 </Text>
 
                 {item.expenseUser && (
                   <Text style={styles.expenseMeta}>
-                    Assigned to <Text style={styles.bold}>{item.expenseUser}</Text>
+                    {item.splitMode === 'full' ? 'Owed by ' : 'Owes '}
+                    <Text style={styles.bold}>{item.expenseUser}</Text>
+                    {item.splitMode !== 'full' && item.splitBetween && (
+                      <Text style={styles.splitInfo}> (1/{item.splitBetween} of £{item.originalAmount})</Text>
+                    )}
                   </Text>
                 )}
 
@@ -651,5 +892,52 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 20,
     color: "#777",
+  },
+
+  // SPLIT MODE STYLES
+  splitModeContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    gap: 8,
+  },
+  splitModeButton: {
+    flex: 1,
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    backgroundColor: "#fff",
+  },
+  splitModeActive: {
+    backgroundColor: Colors.primary,
+  },
+  splitModeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.primary,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  splitModeTextActive: {
+    color: "#fff",
+  },
+  splitPreview: {
+    marginTop: 12,
+    padding: 10,
+    backgroundColor: "#e8f5e9",
+    borderRadius: 8,
+    color: "#2e7d32",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  splitInfo: {
+    color: "#999",
+    fontWeight: "400",
+    fontSize: 12,
   },
 });

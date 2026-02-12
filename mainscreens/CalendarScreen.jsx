@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, RefreshControl } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getFirestore, collection, getDocs, addDoc, query, where, deleteDoc, doc, writeBatch } from 'firebase/firestore';
@@ -31,11 +32,40 @@ const CalendarScreen = ({ route, navigation }) => {
   const [activeChores, setActiveChores] = useState([]);
   const [startingUser, setStartingUser] = useState('random'); // 'random' or a username
   const [showStarterPicker, setShowStarterPicker] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [calendarKey, setCalendarKey] = useState(0); // Key to force calendar re-render
   const { username, flatNum, email, flatMembUsernames, flatMembVacated, isVacated, flatName, loading, error, refetch, imgLink, flatMemb } = useFetchUser();
-
+  
   const app = initializeApp(firebaseConfig);
   const firestore = getFirestore(app);
   const auth = getAuth();
+
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchChores();
+      await fetchActiveChores();
+      if (typeof refetch === 'function') await refetch();
+      // Force calendar to re-render with new data
+      setCalendarKey(prev => prev + 1);
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    }
+    setRefreshing(false);
+  }, [flatNum, username]);
+
+  // Add reload button to header
+  useEffect(() => {
+    if (!navigation || !onRefresh) return;
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={onRefresh} style={{ marginRight: 16 }}>
+          <Ionicons name="reload" size={24} color="#007bff" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, onRefresh]);
 
   // Get active (non-vacated) flatmates
   const getActiveFlatmates = () => {
@@ -296,9 +326,15 @@ const CalendarScreen = ({ route, navigation }) => {
     >
 
 
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View style={styles.container}>
           <Calendar
+            key={calendarKey}
             markingType={'multi-dot'}
             markedDates={markedDates}
             onDayPress={(day) => {

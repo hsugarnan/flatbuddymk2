@@ -375,6 +375,7 @@ const ProfileScreen = ({ route, navigation }) => {
   };
 
   // --- Reassign Chores Function (when user vacates) ---
+  // --- Reassign All Chores Fairly (when user vacates) ---
   const reassignVacatedUserChores = async (vacatedUsername) => {
     if (!flatNum) return;
 
@@ -388,43 +389,109 @@ const ProfileScreen = ({ route, navigation }) => {
       return;
     }
 
-    // Get all future chores assigned to the vacating user
+    // Get ALL future chores for this flat (not just the vacating user's)
     const today = new Date().toISOString().split('T')[0];
     const choresQuery = query(
       collection(firestore, 'chores'),
-      where('flatID', '==', flatNum),
-      where('userEmail', '==', vacatedUsername)
+      where('flatID', '==', flatNum)
     );
     
     const querySnapshot = await getDocs(choresQuery);
-    const futureChoresToReassign = [];
-
+    
+    // Group chores by choreName, only including future chores
+    const choresByName = {};
     querySnapshot.forEach(docSnap => {
       const data = docSnap.data();
-      // Only reassign future chores (not past or today)
       if (data.date >= today) {
-        futureChoresToReassign.push({ id: docSnap.id, ...data });
+        if (!choresByName[data.choreName]) {
+          choresByName[data.choreName] = [];
+        }
+        choresByName[data.choreName].push({ id: docSnap.id, ...data });
       }
     });
 
-    if (futureChoresToReassign.length === 0) {
-      console.log('No future chores to reassign');
+    // For each chore type, redistribute fairly among active flatmates
+    let totalReassigned = 0;
+    for (const choreName in choresByName) {
+      const choreInstances = choresByName[choreName];
+      
+      // Sort by date
+      choreInstances.sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      // Redistribute round-robin to all active flatmates
+      for (let i = 0; i < choreInstances.length; i++) {
+        const chore = choreInstances[i];
+        const newAssignee = activeFlatmates[i % activeFlatmates.length];
+        
+        // Only update if assignee changed
+        if (chore.userEmail !== newAssignee) {
+          const choreRef = doc(firestore, 'chores', chore.id);
+          await updateDoc(choreRef, { userEmail: newAssignee });
+          totalReassigned++;
+        }
+      }
+    }
+
+    console.log(`Redistributed ${totalReassigned} chores fairly among ${activeFlatmates.length} active flatmates`);
+  };
+
+  // --- Redistribute All Chores Fairly (when user returns) ---
+  const redistributeAllChoresFairly = async (returningUsername) => {
+    if (!flatNum) return;
+
+    // Get all flatmates including the returning user (they're now active)
+    // We need to include the returning user manually since flatMembVacated hasn't updated yet
+    const allActiveFlatmates = flatMembUsernames.filter((u, index) => 
+      u === returningUsername || !flatMembVacated[index]
+    );
+
+    if (allActiveFlatmates.length === 0) {
+      console.log('No active flatmates');
       return;
     }
 
-    // Sort by date to maintain order
-    futureChoresToReassign.sort((a, b) => new Date(a.date) - new Date(b.date));
+    // Get all future chores for this flat
+    const today = new Date().toISOString().split('T')[0];
+    const choresQuery = query(
+      collection(firestore, 'chores'),
+      where('flatID', '==', flatNum)
+    );
+    
+    const querySnapshot = await getDocs(choresQuery);
+    
+    // Group chores by choreName, only including future chores
+    const choresByName = {};
+    querySnapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      if (data.date >= today) {
+        if (!choresByName[data.choreName]) {
+          choresByName[data.choreName] = [];
+        }
+        choresByName[data.choreName].push({ id: docSnap.id, ...data });
+      }
+    });
 
-    // Reassign chores round-robin to active flatmates
-    let assignmentIndex = 0;
-    for (const chore of futureChoresToReassign) {
-      const newAssignee = activeFlatmates[assignmentIndex % activeFlatmates.length];
-      const choreRef = doc(firestore, 'chores', chore.id);
-      await updateDoc(choreRef, { userEmail: newAssignee });
-      assignmentIndex++;
+    // For each chore type, redistribute fairly
+    for (const choreName in choresByName) {
+      const choreInstances = choresByName[choreName];
+      
+      // Sort by date
+      choreInstances.sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      // Redistribute round-robin to all active flatmates
+      for (let i = 0; i < choreInstances.length; i++) {
+        const chore = choreInstances[i];
+        const newAssignee = allActiveFlatmates[i % allActiveFlatmates.length];
+        
+        // Only update if assignee changed
+        if (chore.userEmail !== newAssignee) {
+          const choreRef = doc(firestore, 'chores', chore.id);
+          await updateDoc(choreRef, { userEmail: newAssignee });
+        }
+      }
     }
 
-    console.log(`Reassigned ${futureChoresToReassign.length} chores to active flatmates`);
+    console.log(`Redistributed chores fairly among ${allActiveFlatmates.length} flatmates`);
   };
 
   // --- Vacate Flat Function ---
@@ -461,17 +528,22 @@ const ProfileScreen = ({ route, navigation }) => {
   const handleReturnToFlat = () => {
     Alert.alert(
       'Return to Flat',
-      'Welcome back! Are you ready to rejoin the chore and product rotations?',
+      'Welcome back! Your chores will be fairly redistributed among all flatmates.',
       [
         { text: 'Not Yet', style: 'cancel' },
         {
           text: 'Yes, I\'m Back!',
           onPress: async () => {
             try {
+              // First mark user as not vacated
               const userRef = doc(firestore, 'users', auth.currentUser.uid);
               await updateDoc(userRef, { vacated: false });
+              
+              // Redistribute all future chores fairly among all flatmates (including returning user)
+              await redistributeAllChoresFairly(username);
+              
               refetch();
-              Alert.alert('Welcome Back!', 'You have been added back to all rotations.');
+              Alert.alert('Welcome Back!', 'You have been added back to all rotations and chores have been redistributed fairly.');
             } catch (error) {
               console.error('Error returning to flat:', error);
               Alert.alert('Error', 'Failed to return to flat.');
